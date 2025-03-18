@@ -217,6 +217,15 @@
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+      // Wait for ethers to be loaded
+      window.addEventListener("load", function () {
+        if (typeof ethers === "undefined") {
+          console.error("ethers.js not loaded!");
+          return;
+        }
+        console.log("ethers.js loaded successfully");
+      });
+
       // Contract configuration
       const contractAddress = "0x2b53D221E2F8B753efeCf0f31bf06Cb7B6A0A42a";
       const contractABI = [
@@ -232,23 +241,88 @@
       let provider, signer, contract;
       const loading = document.getElementById("loading");
 
+      // Initialize buttons as disabled
+      function initializeButtons() {
+        const buttons = [
+          "registerEntity",
+          "deactivateEntity",
+          "issueFunds",
+          "getAllEntities",
+          "getEntityDetails",
+          "getSpendingRecords",
+          "getContractBalance",
+        ];
+
+        buttons.forEach((buttonId) => {
+          const button = document.getElementById(buttonId);
+          if (button) {
+            button.disabled = true;
+            console.log(`Initialized button: ${buttonId}`);
+          } else {
+            console.error(`Button not found: ${buttonId}`);
+          }
+        });
+      }
+
       // Connect to the contract
       async function connectToContract() {
         try {
+          console.log("Attempting to connect to contract...");
+
+          // Check if ethers is loaded
+          if (typeof ethers === "undefined") {
+            throw new Error("ethers.js not loaded!");
+          }
+
           // Connect to local Ganache
           provider = new ethers.providers.JsonRpcProvider(
             "http://127.0.0.1:8545"
           );
+          console.log("Provider created");
 
           // Use Central Government account
           const privateKey =
-            "0x919832460c2b8940d8f21149cae1f07b9bfa06eb37d751192519cc841d2ef636";
+            "0x65474de5bd3748334ac3dd957d71b42d953a4da479be8106705f62f49e402684";
           signer = new ethers.Wallet(privateKey, provider);
+          console.log("Signer created");
+
           contract = new ethers.Contract(contractAddress, contractABI, signer);
+          console.log("Contract instance created");
+
+          // Verify connection by getting contract balance
+          const balance = await contract.getContractBalance();
+          console.log(
+            "Contract balance:",
+            ethers.utils.formatEther(balance),
+            "ETH"
+          );
 
           document.getElementById("connectionStatus").textContent =
             "Connected as Central Government";
           document.getElementById("connectionStatus").style.color = "green";
+
+          // Enable all buttons after successful connection
+          const buttons = [
+            "registerEntity",
+            "deactivateEntity",
+            "issueFunds",
+            "getAllEntities",
+            "getEntityDetails",
+            "getSpendingRecords",
+            "getContractBalance",
+          ];
+
+          buttons.forEach((buttonId) => {
+            const button = document.getElementById(buttonId);
+            if (button) {
+              button.disabled = false;
+              console.log(`Enabled button: ${buttonId}`);
+            } else {
+              console.error(`Button not found: ${buttonId}`);
+            }
+          });
+
+          console.log("Successfully connected and enabled all buttons");
         } catch (error) {
           console.error("Connection error:", error);
           document.getElementById("connectionStatus").textContent =
@@ -278,23 +352,86 @@
         return new Date(timestamp.toNumber() * 1000).toLocaleString();
       }
 
-      // Event Listeners
-      document
-        .getElementById("connectWallet")
-        .addEventListener("click", connectToContract);
-
       // Entity Management
       document
         .getElementById("registerEntity")
         .addEventListener("click", async () => {
           try {
+            console.log("Register entity button clicked");
             showLoading();
             const address = document.getElementById("entityAddress").value;
             const name = document.getElementById("entityName").value;
-            const tx = await contract.registerEntity(address, name);
-            await tx.wait();
-            alert("Entity registered successfully!");
+
+            if (!address || !name) {
+              throw new Error("Please enter both address and name");
+            }
+
+            console.log("Attempting to register entity:", { address, name });
+
+            // First check if the entity exists
+            try {
+              const [existingName, isActive, balance] =
+                await contract.getEntityDetails(address);
+
+              // Check if this is actually a registered entity or just default values
+              // A registered entity should have either a name or have been active at some point
+              if (
+                existingName !== "" ||
+                isActive === true ||
+                !balance.isZero()
+              ) {
+                document.getElementById("entityDetailsResult").innerHTML = `
+          Entity already exists:<br>
+          Name: ${existingName}<br>
+          Active: ${isActive}<br>
+          Balance: ${ethers.utils.formatEther(balance)} ETH<br>
+          Cannot register this address as it's already in use.
+        `;
+              } else {
+                // This is likely a default return value for a non-existent entity
+                // Proceed with registration
+                const tx = await contract.registerEntity(address, name);
+                console.log("Registration transaction sent:", tx.hash);
+                await tx.wait();
+                console.log("Registration transaction confirmed");
+
+                document.getElementById("entityDetailsResult").innerHTML = `
+          Entity registered successfully!<br>
+          Address: ${address}<br>
+          Name: ${name}
+        `;
+
+                alert("Entity registered successfully!");
+              }
+            } catch (error) {
+              // If we get an error here, it could mean the entity doesn't exist
+              // or there was a different issue
+              console.log(
+                "Error checking entity, attempting registration:",
+                error
+              );
+
+              try {
+                const tx = await contract.registerEntity(address, name);
+                console.log("Registration transaction sent:", tx.hash);
+                await tx.wait();
+                console.log("Registration transaction confirmed");
+
+                document.getElementById("entityDetailsResult").innerHTML = `
+          Entity registered successfully!<br>
+          Address: ${address}<br>
+          Name: ${name}
+        `;
+
+                alert("Entity registered successfully!");
+              } catch (regError) {
+                throw new Error(
+                  `Failed to register entity: ${regError.message}`
+                );
+              }
+            }
           } catch (error) {
+            console.error("Registration error:", error);
             showError("entityDetailsResult", error.message);
           } finally {
             hideLoading();
@@ -424,6 +561,17 @@
             hideLoading();
           }
         });
+
+      // Initialize buttons when the page loads
+      document.addEventListener("DOMContentLoaded", () => {
+        console.log("Page loaded, initializing buttons...");
+        initializeButtons();
+      });
+
+      // Event Listeners
+      document
+        .getElementById("connectWallet")
+        .addEventListener("click", connectToContract);
     </script>
   </body>
 </html>
