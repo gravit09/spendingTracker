@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Central Government Dashboard</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .card {
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+      }
+      .form-group {
+        margin-bottom: 1rem;
+      }
+      .result-box {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 10px;
+        white-space: pre-wrap;
+      }
+      .loading {
+        display: none;
+        text-align: center;
+        padding: 20px;
+      }
+      .error-message {
+        color: #dc3545;
+        margin-top: 10px;
+      }
+      .nav-link {
+        color: #0d6efd;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <div class="container">
+        <a class="navbar-brand" href="#">Central Government Dashboard</a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html">Back to Role Selection</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container mt-4">
+      <!-- Connection Status -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Connection Status</h5>
+        </div>
+        <div class="card-body">
+          <div id="connectionStatus">Not Connected</div>
+          <button id="connectWallet" class="btn btn-primary mt-2">
+            Connect as Central Government
+          </button>
+        </div>
+      </div>
+
+      <!-- Entity Management -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Entity Management</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Register New Entity</label>
+            <div class="input-group">
+              <input
+                type="text"
+                id="entityAddress"
+                class="form-control"
+                placeholder="Entity Address"
+              />
+              <input
+                type="text"
+                id="entityName"
+                class="form-control"
+                placeholder="Entity Name"
+              />
+              <button id="registerEntity" class="btn btn-primary">
+                Register
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Deactivate Entity</label>
+            <div class="input-group">
+              <input
+                type="text"
+                id="deactivateAddress"
+                class="form-control"
+                placeholder="Entity Address"
+              />
+              <button id="deactivateEntity" class="btn btn-danger">
+                Deactivate
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Issue Funds</label>
+            <div class="input-group">
+              <input
+                type="text"
+                id="fundAddress"
+                class="form-control"
+                placeholder="Entity Address"
+              />
+              <input
+                type="number"
+                id="fundAmount"
+                class="form-control"
+                placeholder="Amount (ETH)"
+              />
+              <button id="issueFunds" class="btn btn-success">
+                Issue Funds
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Monitoring -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Monitoring</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>View All Entities</label>
+            <button id="getAllEntities" class="btn btn-info">
+              Get All Entities
+            </button>
+            <div id="allEntitiesResult" class="result-box"></div>
+          </div>
+
+          <div class="form-group">
+            <label>View Entity Details</label>
+            <div class="input-group">
+              <input
+                type="text"
+                id="queryAddress"
+                class="form-control"
+                placeholder="Entity Address"
+              />
+              <button id="getEntityDetails" class="btn btn-info">Query</button>
+            </div>
+            <div id="entityDetailsResult" class="result-box"></div>
+          </div>
+
+          <div class="form-group">
+            <label>View All Spending Records</label>
+            <div class="input-group">
+              <input
+                type="number"
+                id="offset"
+                class="form-control"
+                placeholder="Offset"
+                value="0"
+              />
+              <input
+                type="number"
+                id="limit"
+                class="form-control"
+                placeholder="Limit"
+                value="5"
+              />
+              <button id="getSpendingRecords" class="btn btn-info">
+                Query
+              </button>
+            </div>
+            <div id="spendingRecordsResult" class="result-box"></div>
+          </div>
+
+          <div class="form-group">
+            <label>Contract Balance</label>
+            <button id="getContractBalance" class="btn btn-info">
+              Get Contract Balance
+            </button>
+            <div id="contractBalanceResult" class="result-box"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading Indicator -->
+      <div id="loading" class="loading">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p>Processing transaction...</p>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Contract configuration
+      const contractAddress = "0x2b53D221E2F8B753efeCf0f31bf06Cb7B6A0A42a";
+      const contractABI = [
+        "function registerEntity(address entityAddress, string memory name) public",
+        "function deactivateEntity(address entityAddress) public",
+        "function issueFunds(address entityAddress, uint256 amount) public payable",
+        "function getEntityDetails(address entityAddress) public view returns (string memory name, bool isActive, uint256 balance)",
+        "function getAllEntityAddresses() public view returns (address[] memory)",
+        "function getSpendingRecords(uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, string purpose, uint256 amount, string documentHash, uint256 timestamp)[] memory)",
+        "function getContractBalance() public view returns (uint256)",
+      ];
+
+      let provider, signer, contract;
+      const loading = document.getElementById("loading");
+
+      // Connect to the contract
+      async function connectToContract() {
+        try {
+          // Connect to local Ganache
+          provider = new ethers.providers.JsonRpcProvider(
+            "http://127.0.0.1:8545"
+          );
+
+          // Use Central Government account
+          const privateKey =
+            "0x919832460c2b8940d8f21149cae1f07b9bfa06eb37d751192519cc841d2ef636";
+          signer = new ethers.Wallet(privateKey, provider);
+          contract = new ethers.Contract(contractAddress, contractABI, signer);
+
+          document.getElementById("connectionStatus").textContent =
+            "Connected as Central Government";
+          document.getElementById("connectionStatus").style.color = "green";
+        } catch (error) {
+          console.error("Connection error:", error);
+          document.getElementById("connectionStatus").textContent =
+            "Connection failed: " + error.message;
+          document.getElementById("connectionStatus").style.color = "red";
+        }
+      }
+
+      // Show loading indicator
+      function showLoading() {
+        loading.style.display = "block";
+      }
+
+      // Hide loading indicator
+      function hideLoading() {
+        loading.style.display = "none";
+      }
+
+      // Show error message
+      function showError(elementId, message) {
+        const element = document.getElementById(elementId);
+        element.innerHTML = `<div class="error-message">${message}</div>`;
+      }
+
+      // Format timestamp
+      function formatTimestamp(timestamp) {
+        return new Date(timestamp.toNumber() * 1000).toLocaleString();
+      }
+
+      // Event Listeners
+      document
+        .getElementById("connectWallet")
+        .addEventListener("click", connectToContract);
+
+      // Entity Management
+      document
+        .getElementById("registerEntity")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const address = document.getElementById("entityAddress").value;
+            const name = document.getElementById("entityName").value;
+            const tx = await contract.registerEntity(address, name);
+            await tx.wait();
+            alert("Entity registered successfully!");
+          } catch (error) {
+            showError("entityDetailsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      document
+        .getElementById("deactivateEntity")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const address = document.getElementById("deactivateAddress").value;
+            const tx = await contract.deactivateEntity(address);
+            await tx.wait();
+            alert("Entity deactivated successfully!");
+          } catch (error) {
+            showError("entityDetailsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      document
+        .getElementById("issueFunds")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const address = document.getElementById("fundAddress").value;
+            const amount = ethers.utils.parseEther(
+              document.getElementById("fundAmount").value
+            );
+            const tx = await contract.issueFunds(address, amount, {
+              value: amount,
+            });
+            await tx.wait();
+            alert("Funds issued successfully!");
+          } catch (error) {
+            showError("entityDetailsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      // Monitoring
+      document
+        .getElementById("getEntityDetails")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const address = document.getElementById("queryAddress").value;
+            const [name, isActive, balance] = await contract.getEntityDetails(
+              address
+            );
+            document.getElementById("entityDetailsResult").innerHTML = `
+                    Name: ${name}<br>
+                    Active: ${isActive}<br>
+                    Balance: ${ethers.utils.formatEther(balance)} ETH
+                `;
+          } catch (error) {
+            showError("entityDetailsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      document
+        .getElementById("getSpendingRecords")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const offset = parseInt(document.getElementById("offset").value);
+            const limit = parseInt(document.getElementById("limit").value);
+            const records = await contract.getSpendingRecords(offset, limit);
+            let html = "";
+            records.forEach((record) => {
+              html += `
+                        ID: ${record.id.toString()}<br>
+                        Entity: ${record.entity}<br>
+                        Purpose: ${record.purpose}<br>
+                        Amount: ${ethers.utils.formatEther(
+                          record.amount
+                        )} ETH<br>
+                        Document Hash: ${record.documentHash}<br>
+                        Timestamp: ${formatTimestamp(record.timestamp)}<br><br>
+                    `;
+            });
+            document.getElementById("spendingRecordsResult").innerHTML = html;
+          } catch (error) {
+            showError("spendingRecordsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      document
+        .getElementById("getAllEntities")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const addresses = await contract.getAllEntityAddresses();
+            let html = "Registered Entities:<br>";
+            addresses.forEach((address, index) => {
+              html += `${index + 1}. ${address}<br>`;
+            });
+            document.getElementById("allEntitiesResult").innerHTML = html;
+          } catch (error) {
+            showError("allEntitiesResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      document
+        .getElementById("getContractBalance")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const balance = await contract.getContractBalance();
+            document.getElementById(
+              "contractBalanceResult"
+            ).innerHTML = `Contract Balance: ${ethers.utils.formatEther(
+              balance
+            )} ETH`;
+          } catch (error) {
+            showError("contractBalanceResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+    </script>
+  </body>
+</html>

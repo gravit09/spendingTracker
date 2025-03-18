@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spending Registry - Role Selection</title>
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .role-card {
+        cursor: pointer;
+        transition: transform 0.2s;
+        margin-bottom: 20px;
+      }
+      .role-card:hover {
+        transform: translateY(-5px);
+      }
+      .role-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+      }
+      .role-description {
+        color: #6c757d;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body class="bg-light">
+    <div class="container mt-5">
+      <div class="text-center mb-5">
+        <h1>Government Spending Registry</h1>
+        <p class="lead">Select your role to access the appropriate dashboard</p>
+      </div>
+
+      <div class="row justify-content-center">
+        <!-- Central Government Card -->
+        <div class="col-md-5">
+          <div
+            class="card role-card"
+            onclick="window.location.href='central-government.html'"
+          >
+            <div class="card-body text-center">
+              <div class="role-icon">👑</div>
+              <h3>Central Government</h3>
+              <p class="role-description">
+                Manage entity registration, fund distribution, and monitor
+                spending across all government entities.
+              </p>
+              <ul class="list-unstyled text-start">
+                <li>✓ Register new entities</li>
+                <li>✓ Issue funds to entities</li>
+                <li>✓ Monitor all spending records</li>
+                <li>✓ Deactivate entities</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Government Entity Card -->
+        <div class="col-md-5">
+          <div
+            class="card role-card"
+            onclick="window.location.href='entity.html'"
+          >
+            <div class="card-body text-center">
+              <div class="role-icon">🏛️</div>
+              <h3>Government Entity</h3>
+              <p class="role-description">
+                Record and manage spending, view available funds, and track
+                spending history.
+              </p>
+              <ul class="list-unstyled text-start">
+                <li>✓ Record new spending</li>
+                <li>✓ View available balance</li>
+                <li>✓ Track spending history</li>
+                <li>✓ View entity details</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>
