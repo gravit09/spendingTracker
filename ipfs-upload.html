@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IPFS Document Upload</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input[type="file"] {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      input[type="text"] {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-bottom: 10px;
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      #result {
+        margin-top: 20px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        display: none;
+      }
+      .success {
+        background-color: #dff0d8;
+        border-color: #d6e9c6;
+      }
+      .error {
+        background-color: #f2dede;
+        border-color: #ebccd1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>IPFS Document Upload</h1>
+      <div class="form-group">
+        <label for="pinataApiKey">Pinata API Key:</label>
+        <input
+          type="text"
+          id="pinataApiKey"
+          placeholder="Enter your Pinata API Key"
+        />
+
+        <label for="pinataSecretKey">Pinata Secret Key:</label>
+        <input
+          type="text"
+          id="pinataSecretKey"
+          placeholder="Enter your Pinata Secret Key"
+        />
+
+        <label for="fileInput">Select Document:</label>
+        <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt" />
+      </div>
+      <button onclick="uploadToIPFS()">Upload to IPFS</button>
+      <div id="result"></div>
+    </div>
+
+    <script>
+      async function uploadToIPFS() {
+        const fileInput = document.getElementById("fileInput");
+        const resultDiv = document.getElementById("result");
+        const apiKey = document.getElementById("pinataApiKey").value;
+        const secretKey = document.getElementById("pinataSecretKey").value;
+
+        if (!fileInput.files.length) {
+          showResult("Please select a file first", false);
+          return;
+        }
+
+        if (!apiKey || !secretKey) {
+          showResult("Please enter both Pinata API Key and Secret Key", false);
+          return;
+        }
+
+        try {
+          const file = fileInput.files[0];
+          const formData = new FormData();
+          formData.append("file", file);
+
+          const response = await axios.post(
+            "https://api.pinata.cloud/pinning/pinFileToIPFS",
+            formData,
+            {
+              headers: {
+                "Content-Type": `multipart/form-data; boundary=${formData._boundary}`,
+                pinata_api_key: apiKey,
+                pinata_secret_api_key: secretKey,
+              },
+            }
+          );
+
+          const ipfsHash = response.data.IpfsHash;
+          const uri = `ipfs://${ipfsHash}/${file.name}`;
+
+          showResult(`Document uploaded successfully!\nIPFS URI: ${uri}`, true);
+        } catch (error) {
+          showResult(`Error uploading file: ${error.message}`, false);
+        }
+      }
+
+      function showResult(message, isSuccess) {
+        const resultDiv = document.getElementById("result");
+        resultDiv.textContent = message;
+        resultDiv.style.display = "block";
+        resultDiv.className = isSuccess ? "success" : "error";
+      }
+    </script>
+  </body>
+</html>
