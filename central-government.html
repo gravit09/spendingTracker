@@ -175,14 +175,14 @@
             <div class="input-group">
               <input
                 type="number"
-                id="offset"
+                id="spendingOffset"
                 class="form-control"
                 placeholder="Offset"
                 value="0"
               />
               <input
                 type="number"
-                id="limit"
+                id="spendingLimit"
                 class="form-control"
                 placeholder="Limit"
                 value="5"
@@ -200,6 +200,58 @@
               Get Contract Balance
             </button>
             <div id="contractBalanceResult" class="result-box"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fund Request Management -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Fund Request Management</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>View All Fund Requests</label>
+            <div class="input-group">
+              <input
+                type="number"
+                id="fundRequestOffset"
+                class="form-control"
+                placeholder="Offset"
+                value="0"
+              />
+              <input
+                type="number"
+                id="fundRequestLimit"
+                class="form-control"
+                placeholder="Limit"
+                value="5"
+              />
+              <button id="getAllFundRequests" class="btn btn-info">
+                Query
+              </button>
+            </div>
+            <div id="allFundRequestsResult" class="result-box"></div>
+          </div>
+
+          <div class="form-group mt-3">
+            <label>Process Fund Request</label>
+            <div class="input-group mb-2">
+              <input
+                type="number"
+                id="requestId"
+                class="form-control"
+                placeholder="Request ID"
+              />
+            </div>
+            <div class="btn-group">
+              <button id="approveRequest" class="btn btn-success">
+                Approve Request
+              </button>
+              <button id="rejectRequest" class="btn btn-danger">
+                Reject Request
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -236,6 +288,10 @@
         "function getAllEntityAddresses() public view returns (address[] memory)",
         "function getSpendingRecords(uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, string purpose, uint256 amount, string documentHash, uint256 timestamp)[] memory)",
         "function getContractBalance() public view returns (uint256)",
+        "function getEntityCount() public view returns (uint256)",
+        "function getFundRequests(uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, uint256 amount, string reason, string documentHash, uint256 timestamp, bool isApproved, bool isRejected)[] memory)",
+        "function approveFundRequest(uint256 requestId) public",
+        "function rejectFundRequest(uint256 requestId) public",
       ];
 
       let provider, signer, contract;
@@ -251,6 +307,9 @@
           "getEntityDetails",
           "getSpendingRecords",
           "getContractBalance",
+          "getAllFundRequests",
+          "approveRequest",
+          "rejectRequest",
         ];
 
         buttons.forEach((buttonId) => {
@@ -318,6 +377,9 @@
             "getEntityDetails",
             "getSpendingRecords",
             "getContractBalance",
+            "getAllFundRequests",
+            "approveRequest",
+            "rejectRequest",
           ];
 
           buttons.forEach((buttonId) => {
@@ -527,8 +589,12 @@
         .addEventListener("click", async () => {
           try {
             showLoading();
-            const offset = parseInt(document.getElementById("offset").value);
-            const limit = parseInt(document.getElementById("limit").value);
+            const offset = parseInt(
+              document.getElementById("spendingOffset").value
+            );
+            const limit = parseInt(
+              document.getElementById("spendingLimit").value
+            );
             const records = await contract.getSpendingRecords(offset, limit);
             let html = "";
             records.forEach((record) => {
@@ -582,6 +648,81 @@
             )} ETH`;
           } catch (error) {
             showError("contractBalanceResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      // Fund Request Management
+      document
+        .getElementById("getAllFundRequests")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const offset = parseInt(
+              document.getElementById("fundRequestOffset").value
+            );
+            const limit = parseInt(
+              document.getElementById("fundRequestLimit").value
+            );
+            const requests = await contract.getFundRequests(offset, limit);
+            let html = "";
+            requests.forEach((request) => {
+              html += `
+                ID: ${request.id.toString()}<br>
+                Entity: ${request.entity}<br>
+                Amount: ${ethers.utils.formatEther(request.amount)} ETH<br>
+                Reason: ${request.reason}<br>
+                Document Hash: ${request.documentHash}<br>
+                Timestamp: ${formatTimestamp(request.timestamp)}<br>
+                Status: ${
+                  request.isApproved
+                    ? "Approved"
+                    : request.isRejected
+                    ? "Rejected"
+                    : "Pending"
+                }<br><br>
+              `;
+            });
+            document.getElementById("allFundRequestsResult").innerHTML = html;
+          } catch (error) {
+            showError("allFundRequestsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      document
+        .getElementById("approveRequest")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const requestId = parseInt(
+              document.getElementById("requestId").value
+            );
+            const tx = await contract.approveFundRequest(requestId);
+            await tx.wait();
+            alert("Fund request approved successfully!");
+          } catch (error) {
+            showError("allFundRequestsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      document
+        .getElementById("rejectRequest")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const requestId = parseInt(
+              document.getElementById("requestId").value
+            );
+            const tx = await contract.rejectFundRequest(requestId);
+            await tx.wait();
+            alert("Fund request rejected successfully!");
+          } catch (error) {
+            showError("allFundRequestsResult", error.message);
           } finally {
             hideLoading();
           }

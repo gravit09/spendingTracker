@@ -163,6 +163,67 @@
         </div>
       </div>
 
+      <!-- Fund Request Management -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Fund Request Management</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Request Funds from Central Government</label>
+            <div class="input-group mb-2">
+              <input
+                type="number"
+                id="requestAmount"
+                class="form-control"
+                placeholder="Amount (ETH)"
+              />
+            </div>
+            <div class="input-group mb-2">
+              <input
+                type="text"
+                id="requestReason"
+                class="form-control"
+                placeholder="Reason for Request"
+              />
+            </div>
+            <div class="input-group mb-2">
+              <input
+                type="text"
+                id="requestDocumentHash"
+                class="form-control"
+                placeholder="Document Hash"
+              />
+            </div>
+            <button id="requestFunds" class="btn btn-warning">
+              Submit Fund Request
+            </button>
+          </div>
+
+          <div class="form-group">
+            <label>View Fund Requests</label>
+            <div class="input-group">
+              <input
+                type="number"
+                id="requestOffset"
+                class="form-control"
+                placeholder="Offset"
+                value="0"
+              />
+              <input
+                type="number"
+                id="requestLimit"
+                class="form-control"
+                placeholder="Limit"
+                value="5"
+              />
+              <button id="getFundRequests" class="btn btn-info">Query</button>
+            </div>
+            <div id="fundRequestsResult" class="result-box"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Loading Indicator -->
       <div id="loading" class="loading">
         <div class="spinner-border text-primary" role="status">
@@ -182,6 +243,8 @@
         "function recordSpending(string memory purpose, uint256 amount, string memory documentHash) public",
         "function getEntityDetails(address entityAddress) public view returns (string memory name, bool isActive, uint256 balance)",
         "function getEntitySpendingRecords(address entityAddress, uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, string purpose, uint256 amount, string documentHash, uint256 timestamp)[] memory)",
+        "function requestFunds(uint256 amount, string memory reason, string memory documentHash) public",
+        "function getEntityFundRequests(address entityAddress, uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, uint256 amount, string reason, string documentHash, uint256 timestamp, bool isApproved, bool isRejected)[] memory)",
       ];
 
       // Entity private keys mapping
@@ -348,6 +411,76 @@
             document.getElementById("entitySpendingResult").innerHTML = html;
           } catch (error) {
             showError("entitySpendingResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      // Fund Request Management
+      document
+        .getElementById("requestFunds")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const amount = ethers.utils.parseEther(
+              document.getElementById("requestAmount").value
+            );
+            const reason = document.getElementById("requestReason").value;
+            const documentHash = document.getElementById(
+              "requestDocumentHash"
+            ).value;
+
+            const tx = await contract.requestFunds(
+              amount,
+              reason,
+              documentHash
+            );
+            await tx.wait();
+            alert("Fund request submitted successfully!");
+          } catch (error) {
+            showError("fundRequestsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      document
+        .getElementById("getFundRequests")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const address = document.getElementById("entitySelect").value;
+            const offset = parseInt(
+              document.getElementById("requestOffset").value
+            );
+            const limit = parseInt(
+              document.getElementById("requestLimit").value
+            );
+            const requests = await contract.getEntityFundRequests(
+              address,
+              offset,
+              limit
+            );
+            let html = "";
+            requests.forEach((request) => {
+              html += `
+                ID: ${request.id.toString()}<br>
+                Amount: ${ethers.utils.formatEther(request.amount)} ETH<br>
+                Reason: ${request.reason}<br>
+                Document Hash: ${request.documentHash}<br>
+                Timestamp: ${formatTimestamp(request.timestamp)}<br>
+                Status: ${
+                  request.isApproved
+                    ? "Approved"
+                    : request.isRejected
+                    ? "Rejected"
+                    : "Pending"
+                }<br><br>
+              `;
+            });
+            document.getElementById("fundRequestsResult").innerHTML = html;
+          } catch (error) {
+            showError("fundRequestsResult", error.message);
           } finally {
             hideLoading();
           }

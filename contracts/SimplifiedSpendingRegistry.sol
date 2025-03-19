@@ -17,10 +17,23 @@ contract SimplifiedSpendingRegistry {
         uint256 timestamp;
     }
 
+    struct FundRequest {
+        uint256 id;
+        address entity;
+        uint256 amount;
+        string reason;
+        string documentHash;
+        uint256 timestamp;
+        bool isApproved;
+        bool isRejected;
+    }
+
     mapping(address => GovernmentEntity) public governmentEntities;
     mapping(uint256 => SpendingRecord) public spendingRecords;
     address[] public entityAddresses;
     uint256 public recordCount;
+    uint256 public requestCount;
+    FundRequest[] public fundRequests;
 
     address public centralGovernment;
 
@@ -29,6 +42,15 @@ contract SimplifiedSpendingRegistry {
     event EntityDeactivated(address indexed entityAddress);
     event FundsIssued(address indexed to, uint256 amount);
     event SpendingRecorded(uint256 indexed id, address indexed entity, uint256 amount, string documentHash);
+    event FundRequested(
+        uint256 indexed id,
+        address indexed entity,
+        uint256 amount,
+        string reason,
+        string documentHash
+    );
+    event FundRequestApproved(uint256 indexed id, address indexed entity);
+    event FundRequestRejected(uint256 indexed id, address indexed entity);
 
     constructor() {
         centralGovernment = msg.sender;
@@ -191,5 +213,95 @@ contract SimplifiedSpendingRegistry {
     // Get balance of contract
     function getContractBalance() public view onlyCentralGovernment returns (uint256) {
         return address(this).balance;
+    }
+
+    function requestFunds(uint256 amount, string memory reason, string memory documentHash)
+        public
+        onlyRegisteredEntity
+    {
+        require(amount > 0, "Amount must be greater than 0");
+        require(bytes(reason).length > 0, "Reason cannot be empty");
+        require(bytes(documentHash).length > 0, "Document hash cannot be empty");
+
+        uint256 requestId = requestCount++;
+        fundRequests.push(
+            FundRequest({
+                id: requestId,
+                entity: msg.sender,
+                amount: amount,
+                reason: reason,
+                documentHash: documentHash,
+                timestamp: block.timestamp,
+                isApproved: false,
+                isRejected: false
+            })
+        );
+        emit FundRequested(requestId, msg.sender, amount, reason, documentHash);
+    }
+
+    function approveFundRequest(uint256 requestId) public onlyCentralGovernment {
+        require(requestId < requestCount, "Invalid request ID");
+        FundRequest storage request = fundRequests[requestId];
+        require(!request.isApproved && !request.isRejected, "Request already processed");
+        
+        request.isApproved = true;
+        governmentEntities[request.entity].balance += request.amount;
+        emit FundRequestApproved(requestId, request.entity);
+    }
+
+    function rejectFundRequest(uint256 requestId) public onlyCentralGovernment {
+        require(requestId < requestCount, "Invalid request ID");
+        FundRequest storage request = fundRequests[requestId];
+        require(!request.isApproved && !request.isRejected, "Request already processed");
+        
+        request.isRejected = true;
+        emit FundRequestRejected(requestId, request.entity);
+    }
+
+    function getFundRequest(uint256 requestId) public view returns (FundRequest memory) {
+        require(requestId < requestCount, "Invalid request ID");
+        return fundRequests[requestId];
+    }
+
+    function getFundRequests(uint256 offset, uint256 limit) public view returns (FundRequest[] memory) {
+        uint256 end = offset + limit;
+        if (end > requestCount) {
+            end = requestCount;
+        }
+        uint256 resultLength = end - offset;
+        FundRequest[] memory result = new FundRequest[](resultLength);
+        for (uint256 i = 0; i < resultLength; i++) {
+            result[i] = fundRequests[offset + i];
+        }
+        return result;
+    }
+
+    function getEntityFundRequests(address entityAddress, uint256 offset, uint256 limit) 
+        public 
+        view 
+        returns (FundRequest[] memory) 
+    {
+        uint256 count = 0;
+        for (uint256 i = 0; i < requestCount; i++) {
+            if (fundRequests[i].entity == entityAddress) {
+                count++;
+            }
+        }
+        uint256 end = offset + limit;
+        if (end > count) {
+            end = count;
+        }
+        uint256 resultLength = end - offset;
+        FundRequest[] memory result = new FundRequest[](resultLength);
+        uint256 resultIndex = 0;
+        for (uint256 i = 0; i < requestCount && resultIndex < resultLength; i++) {
+            if (fundRequests[i].entity == entityAddress) {
+                if (resultIndex >= offset) {
+                    result[resultIndex - offset] = fundRequests[i];
+                }
+                resultIndex++;
+            }
+        }
+        return result;
     }
 }
