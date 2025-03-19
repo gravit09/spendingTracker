@@ -227,7 +227,7 @@
       });
 
       // Contract configuration
-      const contractAddress = "0x2b53D221E2F8B753efeCf0f31bf06Cb7B6A0A42a";
+      const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
       const contractABI = [
         "function registerEntity(address entityAddress, string memory name) public",
         "function deactivateEntity(address entityAddress) public",
@@ -274,15 +274,23 @@
             throw new Error("ethers.js not loaded!");
           }
 
-          // Connect to local Ganache
+          // Connect to local Hardhat network with explicit network configuration
           provider = new ethers.providers.JsonRpcProvider(
-            "http://127.0.0.1:8545"
+            "http://127.0.0.1:8545",
+            {
+              name: "hardhat",
+              chainId: 31337,
+            }
           );
+
+          // Disable ENS resolution
+          provider.ensAddress = null;
+
           console.log("Provider created");
 
-          // Use Central Government account
+          // Use the first account (deployer) as Central Government
           const privateKey =
-            "0x65474de5bd3748334ac3dd957d71b42d953a4da479be8106705f62f49e402684";
+            "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
           signer = new ethers.Wallet(privateKey, provider);
           console.log("Signer created");
 
@@ -362,74 +370,59 @@
             const address = document.getElementById("entityAddress").value;
             const name = document.getElementById("entityName").value;
 
+            console.log("Input values:", { address, name });
+
             if (!address || !name) {
               throw new Error("Please enter both address and name");
+            }
+
+            // Validate address format
+            if (!ethers.utils.isAddress(address)) {
+              throw new Error("Invalid Ethereum address format");
             }
 
             console.log("Attempting to register entity:", { address, name });
 
             // First check if the entity exists
             try {
+              console.log("Checking if entity exists...");
               const [existingName, isActive, balance] =
                 await contract.getEntityDetails(address);
+              console.log("Entity exists:", {
+                existingName,
+                isActive,
+                balance,
+              });
 
-              // Check if this is actually a registered entity or just default values
-              // A registered entity should have either a name or have been active at some point
-              if (
-                existingName !== "" ||
-                isActive === true ||
-                !balance.isZero()
-              ) {
+              // Check if the entity actually exists (has a name and is active)
+              if (existingName !== "" && isActive) {
                 document.getElementById("entityDetailsResult").innerHTML = `
-          Entity already exists:<br>
-          Name: ${existingName}<br>
-          Active: ${isActive}<br>
-          Balance: ${ethers.utils.formatEther(balance)} ETH<br>
-          Cannot register this address as it's already in use.
-        `;
-              } else {
-                // This is likely a default return value for a non-existent entity
-                // Proceed with registration
-                const tx = await contract.registerEntity(address, name);
-                console.log("Registration transaction sent:", tx.hash);
-                await tx.wait();
-                console.log("Registration transaction confirmed");
-
-                document.getElementById("entityDetailsResult").innerHTML = `
-          Entity registered successfully!<br>
-          Address: ${address}<br>
-          Name: ${name}
-        `;
-
-                alert("Entity registered successfully!");
+                Entity already exists:<br>
+                Name: ${existingName}<br>
+                Active: ${isActive}<br>
+                Balance: ${ethers.utils.formatEther(balance)} ETH<br>
+                Cannot register this address as it's already in use.
+              `;
+                return;
               }
             } catch (error) {
-              // If we get an error here, it could mean the entity doesn't exist
-              // or there was a different issue
-              console.log(
-                "Error checking entity, attempting registration:",
-                error
-              );
-
-              try {
-                const tx = await contract.registerEntity(address, name);
-                console.log("Registration transaction sent:", tx.hash);
-                await tx.wait();
-                console.log("Registration transaction confirmed");
-
-                document.getElementById("entityDetailsResult").innerHTML = `
-          Entity registered successfully!<br>
-          Address: ${address}<br>
-          Name: ${name}
-        `;
-
-                alert("Entity registered successfully!");
-              } catch (regError) {
-                throw new Error(
-                  `Failed to register entity: ${regError.message}`
-                );
-              }
+              console.log("Error checking entity:", error);
             }
+
+            // If we get here, either the entity doesn't exist or has an empty name
+            console.log("Proceeding with registration...");
+            const tx = await contract.registerEntity(address, name);
+            console.log("Registration transaction sent:", tx.hash);
+            console.log("Waiting for transaction confirmation...");
+            await tx.wait();
+            console.log("Registration transaction confirmed");
+
+            document.getElementById("entityDetailsResult").innerHTML = `
+            Entity registered successfully!<br>
+            Address: ${address}<br>
+            Name: ${name}
+          `;
+            alert("Entity registered successfully!");
           } catch (error) {
             console.error("Registration error:", error);
             showError("entityDetailsResult", error.message);
@@ -482,15 +475,47 @@
           try {
             showLoading();
             const address = document.getElementById("queryAddress").value;
-            const [name, isActive, balance] = await contract.getEntityDetails(
-              address
+
+            console.log("Checking entity details for address:", address);
+
+            // Validate address format
+            if (!ethers.utils.isAddress(address)) {
+              throw new Error("Invalid Ethereum address format");
+            }
+
+            // Create a new provider instance for this query
+            const queryProvider = new ethers.providers.JsonRpcProvider(
+              "http://127.0.0.1:8545",
+              {
+                name: "hardhat",
+                chainId: 31337,
+              }
             );
+            queryProvider.ensAddress = null;
+
+            // Create a new contract instance for this query
+            const queryContract = new ethers.Contract(
+              contractAddress,
+              contractABI,
+              queryProvider
+            );
+
+            console.log("Fetching entity details...");
+            const [name, isActive, balance] =
+              await queryContract.getEntityDetails(address);
+            console.log("Entity details received:", {
+              name,
+              isActive,
+              balance,
+            });
+
             document.getElementById("entityDetailsResult").innerHTML = `
-                    Name: ${name}<br>
-                    Active: ${isActive}<br>
-                    Balance: ${ethers.utils.formatEther(balance)} ETH
-                `;
+            Name: ${name}<br>
+            Active: ${isActive}<br>
+            Balance: ${ethers.utils.formatEther(balance)} ETH
+          `;
           } catch (error) {
+            console.error("Error fetching entity details:", error);
             showError("entityDetailsResult", error.message);
           } finally {
             hideLoading();

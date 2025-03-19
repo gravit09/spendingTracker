@@ -9,7 +9,7 @@ async function connectToContract() {
   );
 
   // Contract information
-  const contractAddress = "0x2b53D221E2F8B753efeCf0f31bf06Cb7B6A0A42a";
+  const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
   const contractABI = [
     // ABI generated from the SimplifiedSpendingRegistry contract
     "function registerEntity(address entityAddress, string memory name) public",
@@ -32,7 +32,7 @@ async function connectToContract() {
 
   // Connect with wallet (using the first account from Ganache which is the deployer/central government)
   const privateKey =
-    "0x65474de5bd3748334ac3dd957d71b42d953a4da479be8106705f62f49e402684"; // Private key for the central government account
+    "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"; // Private key for the central government account
   const wallet = new ethers.Wallet(privateKey, provider);
 
   // Connect to the contract
@@ -118,7 +118,7 @@ async function governmentEntityOperations(entityAddress, entityPrivateKey) {
   const entityWallet = new ethers.Wallet(entityPrivateKey, provider);
 
   // Contract information
-  const contractAddress = "0xYourContractAddressHere"; // Replace with actual contract address
+  const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"; // Replace with actual contract address
   const contractABI = [
     "function registerEntity(address entityAddress, string memory name) public",
     "function deactivateEntity(address entityAddress) public",

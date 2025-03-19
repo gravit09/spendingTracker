@@ -74,11 +74,11 @@
             <label>Select Entity Account</label>
             <select id="entitySelect" class="form-select">
               <option value="">Select an entity...</option>
-              <option value="0x6b1F02Db052ffad60A068bA76A2ab68d1FA643a0">
+              <option value="0x70997970C51812dc3A010C7d01b50e0d17dc79C8">
                 Department of Education
               </option>
-              <option value="0x54640d4A1c02bc316Ef97C0c808860CEf2a1D689">
-                Department of Health
+              <option value="0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC">
+                Department of Women Welfare
               </option>
             </select>
           </div>
@@ -177,7 +177,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       // Contract configuration
-      const contractAddress = "0x2b53D221E2F8B753efeCf0f31bf06Cb7B6A0A42a";
+      const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
       const contractABI = [
         "function recordSpending(string memory purpose, uint256 amount, string memory documentHash) public",
         "function getEntityDetails(address entityAddress) public view returns (string memory name, bool isActive, uint256 balance)",
@@ -186,10 +186,10 @@
 
       // Entity private keys mapping
       const entityPrivateKeys = {
-        "0x6b1F02Db052ffad60A068bA76A2ab68d1FA643a0":
-          "0x919832460c2b8940d8f21149cae1f07b9bfa06eb37d751192519cc841d2ef636", // Department of Education
-        "0x54640d4A1c02bc316Ef97C0c808860CEf2a1D689":
-          "0x919832460c2b8940d8f21149cae1f07b9bfa06eb37d751192519cc841d2ef636", // Indian Railways
+        "0x70997970C51812dc3A010C7d01b50e0d17dc79C8":
+          "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d", // Department of Education
+        "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC":
+          "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a", // Dept of Women Welfare
       };
 
       let provider, signer, contract;
@@ -203,10 +203,13 @@
             throw new Error("Please select an entity account");
           }
 
-          // Connect to local Ganache
+          // Connect to local Hardhat network
           provider = new ethers.providers.JsonRpcProvider(
             "http://127.0.0.1:8545"
           );
+
+          // Disable ENS resolution
+          provider.ensAddress = null;
 
           // Get the private key for the selected entity
           const privateKey = entityPrivateKeys[selectedAddress];
@@ -264,9 +267,22 @@
           try {
             showLoading();
             const address = document.getElementById("entitySelect").value;
-            const [name, isActive, balance] = await contract.getEntityDetails(
-              address
+
+            // Create a new provider instance for this query
+            const queryProvider = new ethers.providers.JsonRpcProvider(
+              "http://127.0.0.1:8545"
             );
+            queryProvider.ensAddress = null;
+
+            // Create a new contract instance for this query
+            const queryContract = new ethers.Contract(
+              contractAddress,
+              contractABI,
+              queryProvider
+            );
+
+            const [name, isActive, balance] =
+              await queryContract.getEntityDetails(address);
             document.getElementById("entityInfoResult").innerHTML = `
                     Name: ${name}<br>
                     Active: ${isActive}<br>
