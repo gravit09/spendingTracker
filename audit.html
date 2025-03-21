@@ -161,6 +161,48 @@
         </div>
       </div>
 
+      <!-- Micro-Transactions -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Micro-Transactions</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>View Micro-Transactions</label>
+            <div class="row">
+              <div class="col-md-4">
+                <input
+                  type="number"
+                  id="microTransactionsOffset"
+                  class="form-control"
+                  placeholder="Offset"
+                  value="0"
+                />
+              </div>
+              <div class="col-md-4">
+                <input
+                  type="number"
+                  id="microTransactionsLimit"
+                  class="form-control"
+                  placeholder="Limit"
+                  value="10"
+                />
+              </div>
+              <div class="col-md-4">
+                <button
+                  id="getMicroTransactions"
+                  class="btn btn-primary"
+                  disabled
+                >
+                  View Micro-Transactions
+                </button>
+              </div>
+            </div>
+            <div id="microTransactionsResult" class="result-box"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Fund Requests -->
       <div class="card">
         <div class="card-header">
@@ -239,6 +281,8 @@
         "function getFundRequests(uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, uint256 amount, string reason, string documentHash, uint256 timestamp, bool isApproved, bool isRejected)[] memory)",
         "function getAllEntityRatings() public view returns (address[] memory addresses, uint256[] memory ratings, uint256[] memory votes)",
         "function getTimeUntilNextBonus() public view returns (uint256)",
+        "function getMicroTransactions(uint256 offset, uint256 limit) public view returns (tuple(uint256 id, uint256 spendingRecordId, address entity, string description, uint256 amount, uint256 timestamp)[] memory)",
+        "function getSpendingRecordMicroTransactions(uint256 spendingRecordId) public view returns (tuple(uint256 id, uint256 spendingRecordId, address entity, string description, uint256 amount, uint256 timestamp)[] memory)",
       ];
 
       let provider, signer, contract;
@@ -289,6 +333,7 @@
             "getFundRequests",
             "getEntityRatings",
             "getBonusTime",
+            "getMicroTransactions",
           ];
 
           buttons.forEach((buttonId) => {
@@ -463,6 +508,46 @@
           }
         });
 
+      // View micro-transactions
+      document
+        .getElementById("getMicroTransactions")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const offset = parseInt(
+              document.getElementById("microTransactionsOffset").value
+            );
+            const limit = parseInt(
+              document.getElementById("microTransactionsLimit").value
+            );
+
+            const microTransactions = await contract.getMicroTransactions(
+              offset,
+              limit
+            );
+            let result = "Micro-Transactions:\n\n";
+            microTransactions.forEach((transaction) => {
+              result += `ID: ${transaction.id}\n`;
+              result += `Spending Record ID: ${transaction.spendingRecordId}\n`;
+              result += `Entity: ${transaction.entity}\n`;
+              result += `Description: ${transaction.description}\n`;
+              result += `Amount: ${ethers.utils.formatEther(
+                transaction.amount
+              )} ETH\n`;
+              result += `Timestamp: ${new Date(
+                transaction.timestamp * 1000
+              ).toLocaleString()}\n`;
+              result += "------------------------\n";
+            });
+            document.getElementById("microTransactionsResult").innerHTML =
+              result;
+          } catch (error) {
+            showError("microTransactionsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
       // Helper functions
       function showLoading() {
         loading.style.display = "block";
@@ -490,6 +575,7 @@
           "getFundRequests",
           "getEntityRatings",
           "getBonusTime",
+          "getMicroTransactions",
         ];
 
         buttons.forEach((buttonId) => {

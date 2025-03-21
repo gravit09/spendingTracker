@@ -6,6 +6,7 @@ contract SimplifiedSpendingRegistry {
         string name;
         bool isActive;
         uint256 balance;
+        uint256 needToSpend;  // New field to track funds that need to be spent
         uint256 happinessRating;
         uint256 totalVotes;
         uint256 lastVoteTimestamp;
@@ -16,7 +17,16 @@ contract SimplifiedSpendingRegistry {
         address entity;
         string purpose;
         uint256 amount;
-        string documentHash; 
+        string documentHash;
+        uint256 timestamp;
+    }
+
+    struct MicroTransaction {
+        uint256 id;
+        uint256 spendingRecordId;
+        address entity;
+        string description;
+        uint256 amount;
         uint256 timestamp;
     }
 
@@ -40,12 +50,16 @@ contract SimplifiedSpendingRegistry {
 
     mapping(address => GovernmentEntity) public governmentEntities;
     mapping(uint256 => SpendingRecord) public spendingRecords;
+    mapping(uint256 => MicroTransaction) public microTransactions;
     mapping(uint256 => IssuedFund) public issuedFunds;
     mapping(address => bool) public hasVoted;
     address[] public entityAddresses;
     uint256 public recordCount;
     uint256 public requestCount;
     uint256 public issuedFundCount;
+    uint256 private spendingRecordCount;
+    uint256 private microTransactionCount;
+    mapping(uint256 => uint256[]) public spendingRecordMicroTransactions;
     FundRequest[] public fundRequests;
 
     address public centralGovernment;
@@ -69,6 +83,13 @@ contract SimplifiedSpendingRegistry {
     event FundRequestRejected(uint256 indexed id, address indexed entity);
     event Voted(address indexed voter, address indexed entity, uint256 rating);
     event BonusDistributed(address indexed entity, uint256 amount);
+    event MicroTransactionRecorded(
+        uint256 indexed id,
+        uint256 indexed spendingRecordId,
+        address indexed entity,
+        string description,
+        uint256 amount
+    );
 
     constructor() {
         centralGovernment = msg.sender;
@@ -95,6 +116,7 @@ contract SimplifiedSpendingRegistry {
             name: name,
             isActive: true,
             balance: 0,
+            needToSpend: 0,
             happinessRating: 0,
             totalVotes: 0,
             lastVoteTimestamp: 0
@@ -135,19 +157,20 @@ contract SimplifiedSpendingRegistry {
         string memory purpose,
         uint256 amount,
         string memory documentHash
-    ) public onlyRegisteredEntity returns (uint256) {
+    ) public onlyRegisteredEntity {
         require(bytes(purpose).length > 0, "Purpose cannot be empty");
         require(amount > 0, "Amount must be greater than zero");
         require(bytes(documentHash).length > 0, "Document hash cannot be empty");
         require(governmentEntities[msg.sender].balance >= amount, "Insufficient balance");
         
-        // Reduce the entity's balance
+        // Reduce the entity's balance and add to needToSpend
         governmentEntities[msg.sender].balance -= amount;
+        governmentEntities[msg.sender].needToSpend += amount;
         
         // Record the spending
-        recordCount++;
-        spendingRecords[recordCount] = SpendingRecord({
-            id: recordCount,
+        spendingRecordCount++;
+        spendingRecords[spendingRecordCount] = SpendingRecord({
+            id: spendingRecordCount,
             entity: msg.sender,
             purpose: purpose,
             amount: amount,
@@ -155,24 +178,23 @@ contract SimplifiedSpendingRegistry {
             timestamp: block.timestamp
         });
         
-        emit SpendingRecorded(recordCount, msg.sender, amount, documentHash);
-        return recordCount;
+        emit SpendingRecorded(spendingRecordCount, msg.sender, amount, documentHash);
     }
 
     // Get spending record by ID
     function getSpendingRecord(uint256 recordId) public view returns (SpendingRecord memory) {
-        require(recordId > 0 && recordId <= recordCount, "Invalid record ID");
+        require(recordId > 0 && recordId <= spendingRecordCount, "Invalid record ID");
         return spendingRecords[recordId];
     }
 
     // Get all spending records (paginated)
     function getSpendingRecords(uint256 offset, uint256 limit) public view returns (SpendingRecord[] memory) {
-        require(offset < recordCount, "Offset exceeds record count");
+        require(offset < spendingRecordCount, "Offset exceeds record count");
         require(limit > 0, "Limit must be greater than zero");
         
         uint256 resultCount = limit;
-        if (offset + limit > recordCount) {
-            resultCount = recordCount - offset;
+        if (offset + limit > spendingRecordCount) {
+            resultCount = spendingRecordCount - offset;
         }
         
         SpendingRecord[] memory result = new SpendingRecord[](resultCount);
@@ -189,7 +211,7 @@ contract SimplifiedSpendingRegistry {
         
         // First, count how many records belong to this entity
         uint256 entityRecordCount = 0;
-        for (uint256 i = 1; i <= recordCount; i++) {
+        for (uint256 i = 1; i <= spendingRecordCount; i++) {
             if (spendingRecords[i].entity == entityAddress) {
                 entityRecordCount++;
             }
@@ -207,7 +229,7 @@ contract SimplifiedSpendingRegistry {
         uint256 currentOffset = 0;
         uint256 resultIndex = 0;
         
-        for (uint256 i = 1; i <= recordCount && resultIndex < resultCount; i++) {
+        for (uint256 i = 1; i <= spendingRecordCount && resultIndex < resultCount; i++) {
             if (spendingRecords[i].entity == entityAddress) {
                 if (currentOffset >= offset) {
                     result[resultIndex] = spendingRecords[i];
@@ -224,12 +246,13 @@ contract SimplifiedSpendingRegistry {
     function getEntityDetails(address entityAddress) public view returns (
         string memory name,
         bool isActive,
-        uint256 balance
+        uint256 balance,
+        uint256 needToSpend
     ) {
         require(governmentEntities[entityAddress].isActive || !governmentEntities[entityAddress].isActive, "Not a registered entity");
         
         GovernmentEntity memory entity = governmentEntities[entityAddress];
-        return (entity.name, entity.isActive, entity.balance);
+        return (entity.name, entity.isActive, entity.balance, entity.needToSpend);
     }
 
     // Get all entity addresses
@@ -482,5 +505,68 @@ contract SimplifiedSpendingRegistry {
             return 0;
         }
         return (lastBonusDistribution + VOTING_COOLDOWN) - block.timestamp;
+    }
+
+    // Record micro-transaction for a spending record
+    function recordMicroTransaction(
+        uint256 spendingRecordId,
+        string memory description,
+        uint256 amount
+    ) public onlyRegisteredEntity {
+        require(spendingRecords[spendingRecordId].entity == msg.sender, "Not authorized to add micro-transactions to this spending record");
+        require(amount > 0, "Amount must be greater than 0");
+        require(bytes(description).length > 0, "Description cannot be empty");
+        require(governmentEntities[msg.sender].needToSpend >= amount, "Insufficient needToSpend balance");
+
+        // Deduct from needToSpend
+        governmentEntities[msg.sender].needToSpend -= amount;
+
+        microTransactionCount++;
+        microTransactions[microTransactionCount] = MicroTransaction(
+            microTransactionCount,
+            spendingRecordId,
+            msg.sender,
+            description,
+            amount,
+            block.timestamp
+        );
+
+        spendingRecordMicroTransactions[spendingRecordId].push(microTransactionCount);
+
+        emit MicroTransactionRecorded(
+            microTransactionCount,
+            spendingRecordId,
+            msg.sender,
+            description,
+            amount
+        );
+    }
+
+    // Get micro-transactions for a spending record
+    function getSpendingRecordMicroTransactions(uint256 spendingRecordId) public view returns (MicroTransaction[] memory) {
+        uint256[] memory microTransactionIds = spendingRecordMicroTransactions[spendingRecordId];
+        MicroTransaction[] memory result = new MicroTransaction[](microTransactionIds.length);
+        
+        for (uint256 i = 0; i < microTransactionIds.length; i++) {
+            result[i] = microTransactions[microTransactionIds[i]];
+        }
+        
+        return result;
+    }
+
+    // Get all micro-transactions with pagination
+    function getMicroTransactions(uint256 offset, uint256 limit) public view returns (MicroTransaction[] memory) {
+        uint256 end = offset + limit;
+        if (end > microTransactionCount) {
+            end = microTransactionCount;
+        }
+        uint256 resultLength = end - offset;
+        
+        MicroTransaction[] memory result = new MicroTransaction[](resultLength);
+        for (uint256 i = 0; i < resultLength; i++) {
+            result[i] = microTransactions[offset + i + 1];
+        }
+        
+        return result;
     }
 }

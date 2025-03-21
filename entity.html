@@ -106,64 +106,116 @@
         </div>
       </div>
 
-      <!-- Spending Management -->
+      <!-- Record New Spending -->
       <div class="card">
         <div class="card-header">
-          <h5 class="mb-0">Spending Management</h5>
+          <h5 class="mb-0">Record New Spending</h5>
         </div>
         <div class="card-body">
           <div class="form-group">
-            <label>Record New Spending</label>
-            <div class="input-group mb-2">
-              <input
-                type="text"
-                id="spendingPurpose"
-                class="form-control"
-                placeholder="Purpose"
-              />
-            </div>
-            <div class="input-group mb-2">
-              <input
-                type="number"
-                id="spendingAmount"
-                class="form-control"
-                placeholder="Amount (ETH)"
-              />
-            </div>
-            <div class="input-group mb-2">
-              <input
-                type="text"
-                id="documentHash"
-                class="form-control"
-                placeholder="Document Hash"
-              />
-            </div>
-            <button id="recordSpending" class="btn btn-primary">
-              Record Spending
-            </button>
+            <label>Purpose</label>
+            <input
+              type="text"
+              id="spendingPurpose"
+              class="form-control"
+              placeholder="Enter spending purpose"
+            />
           </div>
-
           <div class="form-group">
-            <label>View Entity Spending Records</label>
-            <div class="input-group">
-              <input
-                type="number"
-                id="offset"
-                class="form-control"
-                placeholder="Offset"
-                value="0"
-              />
-              <input
-                type="number"
-                id="limit"
-                class="form-control"
-                placeholder="Limit"
-                value="5"
-              />
-              <button id="getEntitySpending" class="btn btn-info">Query</button>
-            </div>
-            <div id="entitySpendingResult" class="result-box"></div>
+            <label>Amount (ETH)</label>
+            <input
+              type="number"
+              id="spendingAmount"
+              class="form-control"
+              placeholder="Enter amount in ETH"
+              step="0.000000000000000001"
+            />
           </div>
+          <div class="form-group">
+            <label>Document Hash</label>
+            <input
+              type="text"
+              id="documentHash"
+              class="form-control"
+              placeholder="Enter document hash"
+            />
+          </div>
+          <button id="recordSpending" class="btn btn-primary mt-2">
+            Record Spending
+          </button>
+          <div id="spendingResult" class="result-box"></div>
+        </div>
+      </div>
+
+      <!-- Record Micro-Transaction -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Record Micro-Transaction</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Spending Record ID</label>
+            <input
+              type="number"
+              id="spendingRecordId"
+              class="form-control"
+              placeholder="Enter spending record ID"
+            />
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <input
+              type="text"
+              id="microTransactionDescription"
+              class="form-control"
+              placeholder="Enter micro-transaction description"
+            />
+          </div>
+          <div class="form-group">
+            <label>Amount (ETH)</label>
+            <input
+              type="number"
+              id="microTransactionAmount"
+              class="form-control"
+              placeholder="Enter amount in ETH"
+              step="0.000000000000000001"
+            />
+          </div>
+          <button id="recordMicroTransaction" class="btn btn-primary mt-2">
+            Record Micro-Transaction
+          </button>
+          <div id="microTransactionResult" class="result-box"></div>
+        </div>
+      </div>
+
+      <!-- View Entity Spending Records -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">View Entity Spending Records</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Offset</label>
+            <input
+              type="number"
+              id="offset"
+              class="form-control"
+              placeholder="Offset"
+              value="0"
+            />
+          </div>
+          <div class="form-group">
+            <label>Limit</label>
+            <input
+              type="number"
+              id="limit"
+              class="form-control"
+              placeholder="Limit"
+              value="5"
+            />
+          </div>
+          <button id="getEntitySpending" class="btn btn-info">Query</button>
+          <div id="entitySpendingResult" class="result-box"></div>
         </div>
       </div>
 
@@ -245,10 +297,23 @@
       const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
       const contractABI = [
         "function recordSpending(string memory purpose, uint256 amount, string memory documentHash) public",
-        "function getEntityDetails(address entityAddress) public view returns (string memory name, bool isActive, uint256 balance)",
+        "function recordMicroTransaction(uint256 spendingRecordId, string memory description, uint256 amount) public",
+        "function getSpendingRecordMicroTransactions(uint256 spendingRecordId) public view returns (tuple(uint256 id, uint256 spendingRecordId, address entity, string description, uint256 amount, uint256 timestamp)[] memory)",
+        "function getEntityDetails(address entityAddress) public view returns (string memory name, bool isActive, uint256 balance, uint256 needToSpend)",
         "function getEntitySpendingRecords(address entityAddress, uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, string purpose, uint256 amount, string documentHash, uint256 timestamp)[] memory)",
         "function requestFunds(uint256 amount, string memory reason, string memory documentHash) public",
         "function getEntityFundRequests(address entityAddress, uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, uint256 amount, string reason, string documentHash, uint256 timestamp, bool isApproved, bool isRejected)[] memory)",
+        "function getIssuedFunds(uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, uint256 amount, uint256 timestamp)[] memory)",
+        "function getEntityIssuedFunds(address entityAddress, uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, uint256 amount, uint256 timestamp)[] memory)",
+        "function getIssuedFund(uint256 fundId) public view returns (tuple(uint256 id, address entity, uint256 amount, uint256 timestamp))",
+        "function voteForEntity(address entityAddress, uint256 rating) public",
+        "function getEntityRating(address entityAddress) public view returns (uint256 rating, uint256 totalVotes)",
+        "function getAllEntityRatings() public view returns (address[] memory addresses, uint256[] memory ratings, uint256[] memory votes)",
+        "function getTimeUntilNextBonus() public view returns (uint256)",
+        "function distributeBonus() public",
+        "function hasVoted(address voter) public view returns (bool)",
+        "function getLastVoteTimestamp(address voter) public view returns (uint256)",
+        "function getMicroTransactions(uint256 offset, uint256 limit) public view returns (tuple(uint256 id, uint256 spendingRecordId, address entity, string description, uint256 amount, uint256 timestamp)[] memory)",
       ];
 
       // Entity private keys mapping
@@ -348,12 +413,15 @@
               queryProvider
             );
 
-            const [name, isActive, balance] =
+            const [name, isActive, balance, needToSpend] =
               await queryContract.getEntityDetails(address);
             document.getElementById("entityInfoResult").innerHTML = `
                     Name: ${name}<br>
                     Active: ${isActive}<br>
-                    Balance: ${ethers.utils.formatEther(balance)} ETH
+                    Available Balance: ${ethers.utils.formatEther(
+                      balance
+                    )} ETH<br>
+                    Need to Spend: ${ethers.utils.formatEther(needToSpend)} ETH
                 `;
           } catch (error) {
             showError("entityInfoResult", error.message);
@@ -362,7 +430,7 @@
           }
         });
 
-      // Spending Management
+      // Record spending
       document
         .getElementById("recordSpending")
         .addEventListener("click", async () => {
@@ -373,20 +441,116 @@
               document.getElementById("spendingAmount").value
             );
             const documentHash = document.getElementById("documentHash").value;
+            const selectedAddress =
+              document.getElementById("entitySelect").value;
+
+            // Check entity balance first
+            const [name, isActive, balance, needToSpend] =
+              await contract.getEntityDetails(selectedAddress);
+            if (balance.lt(amount)) {
+              throw new Error(
+                `Insufficient balance. Current balance: ${ethers.utils.formatEther(
+                  balance
+                )} ETH, Required: ${ethers.utils.formatEther(amount)} ETH`
+              );
+            }
+
             const tx = await contract.recordSpending(
               purpose,
               amount,
               documentHash
             );
             await tx.wait();
-            alert("Spending recorded successfully!");
+            document.getElementById("spendingResult").innerHTML =
+              "Spending recorded successfully!";
+
+            // Refresh balance display
+            const [
+              updatedName,
+              updatedIsActive,
+              updatedBalance,
+              updatedNeedToSpend,
+            ] = await contract.getEntityDetails(selectedAddress);
+            document.getElementById("entityInfoResult").innerHTML = `
+                Name: ${updatedName}<br>
+                Active: ${updatedIsActive}<br>
+                Available Balance: ${ethers.utils.formatEther(
+                  updatedBalance
+                )} ETH<br>
+                Need to Spend: ${ethers.utils.formatEther(
+                  updatedNeedToSpend
+                )} ETH
+            `;
           } catch (error) {
-            showError("entitySpendingResult", error.message);
+            showError("spendingResult", error.message);
           } finally {
             hideLoading();
           }
         });
 
+      // Record micro-transaction
+      document
+        .getElementById("recordMicroTransaction")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const spendingRecordId = parseInt(
+              document.getElementById("spendingRecordId").value
+            );
+            const description = document.getElementById(
+              "microTransactionDescription"
+            ).value;
+            const amount = ethers.utils.parseEther(
+              document.getElementById("microTransactionAmount").value
+            );
+            const selectedAddress =
+              document.getElementById("entitySelect").value;
+
+            // Check needToSpend balance first
+            const [name, isActive, balance, needToSpend] =
+              await contract.getEntityDetails(selectedAddress);
+            if (needToSpend.lt(amount)) {
+              throw new Error(
+                `Insufficient needToSpend balance. Current needToSpend: ${ethers.utils.formatEther(
+                  needToSpend
+                )} ETH, Required: ${ethers.utils.formatEther(amount)} ETH`
+              );
+            }
+
+            const tx = await contract.recordMicroTransaction(
+              spendingRecordId,
+              description,
+              amount
+            );
+            await tx.wait();
+            document.getElementById("microTransactionResult").innerHTML =
+              "Micro-transaction recorded successfully!";
+
+            // Refresh balance display
+            const [
+              updatedName,
+              updatedIsActive,
+              updatedBalance,
+              updatedNeedToSpend,
+            ] = await contract.getEntityDetails(selectedAddress);
+            document.getElementById("entityInfoResult").innerHTML = `
+                Name: ${updatedName}<br>
+                Active: ${updatedIsActive}<br>
+                Available Balance: ${ethers.utils.formatEther(
+                  updatedBalance
+                )} ETH<br>
+                Need to Spend: ${ethers.utils.formatEther(
+                  updatedNeedToSpend
+                )} ETH
+            `;
+          } catch (error) {
+            showError("microTransactionResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      // View entity spending records
       document
         .getElementById("getEntitySpending")
         .addEventListener("click", async () => {
