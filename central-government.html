@@ -318,6 +318,26 @@
         </div>
       </div>
 
+      <!-- Performance Bonus Distribution -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Performance Bonus Distribution</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Time Until Next Bonus Distribution</label>
+            <button id="getBonusTime" class="btn btn-info">Check Time</button>
+            <div id="bonusTimeResult" class="result-box"></div>
+          </div>
+          <div class="form-group">
+            <button id="distributeBonus" class="btn btn-warning">
+              Distribute Bonus to Top Performer
+            </button>
+            <div id="bonusDistributionResult" class="result-box"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Loading Indicator -->
       <div id="loading" class="loading">
         <div class="spinner-border text-primary" role="status">
@@ -356,6 +376,8 @@
         "function rejectFundRequest(uint256 requestId) public",
         "function getIssuedFunds(uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, uint256 amount, uint256 timestamp)[] memory)",
         "function getEntityIssuedFunds(address entityAddress, uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, uint256 amount, uint256 timestamp)[] memory)",
+        "function distributeBonus() public",
+        "function getTimeUntilNextBonus() public view returns (uint256)",
       ];
 
       let provider, signer, contract;
@@ -376,6 +398,8 @@
           "rejectRequest",
           "getAllIssuedFunds",
           "getEntityIssuedFunds",
+          "getBonusTime",
+          "distributeBonus",
         ];
 
         buttons.forEach((buttonId) => {
@@ -448,6 +472,8 @@
             "rejectRequest",
             "getAllIssuedFunds",
             "getEntityIssuedFunds",
+            "getBonusTime",
+            "distributeBonus",
           ];
 
           buttons.forEach((buttonId) => {
@@ -856,6 +882,42 @@
             document.getElementById("entityIssuedFundsResult").innerHTML = html;
           } catch (error) {
             showError("entityIssuedFundsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      // Check time until next bonus
+      document
+        .getElementById("getBonusTime")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const timeUntilBonus = await contract.getTimeUntilNextBonus();
+            const hours = timeUntilBonus.div(3600);
+            const minutes = timeUntilBonus.mod(3600).div(60);
+            document.getElementById(
+              "bonusTimeResult"
+            ).innerHTML = `Next bonus distribution in: ${hours} hours and ${minutes} minutes`;
+          } catch (error) {
+            showError("bonusTimeResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      // Distribute bonus
+      document
+        .getElementById("distributeBonus")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const tx = await contract.distributeBonus();
+            await tx.wait();
+            document.getElementById("bonusDistributionResult").innerHTML =
+              "Bonus distributed successfully!";
+          } catch (error) {
+            showError("bonusDistributionResult", error.message);
           } finally {
             hideLoading();
           }

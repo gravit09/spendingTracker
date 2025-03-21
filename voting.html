@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Entity Performance Voting</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .card {
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+      }
+      .form-group {
+        margin-bottom: 1rem;
+      }
+      .result-box {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 10px;
+        white-space: pre-wrap;
+      }
+      .loading {
+        display: none;
+        text-align: center;
+        padding: 20px;
+      }
+      .error-message {
+        color: #dc3545;
+        margin-top: 10px;
+      }
+      .nav-link {
+        color: #0d6efd;
+      }
+      .rating-stars {
+        color: #ffc107;
+        font-size: 1.5rem;
+        cursor: pointer;
+      }
+      .rating-stars .star {
+        margin-right: 5px;
+      }
+      .rating-stars .star:hover,
+      .rating-stars .star.active {
+        color: #ffc107;
+      }
+      .rating-stars .star.inactive {
+        color: #e9ecef;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <div class="container">
+        <a class="navbar-brand" href="#">Entity Performance Voting</a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html">Back to Role Selection</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container mt-4">
+      <!-- Connection Status -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Select Voter Account</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Choose Voter Account</label>
+            <select id="voterSelect" class="form-control">
+              <option value="">Select an account</option>
+              <option value="0xdD2FD4581271e230360230F9337D5c0430Bf44C0">
+                Voter 1 (0xdD2F...44C0)
+              </option>
+              <option value="0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199">
+                Voter 2 (0x8626...1199)
+              </option>
+            </select>
+          </div>
+          <button id="connectAccount" class="btn btn-primary mt-2">
+            Connect as Selected Voter
+          </button>
+          <div id="connectionStatus" class="mt-2"></div>
+        </div>
+      </div>
+
+      <!-- Entity Ratings -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Entity Performance Ratings</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>View All Entity Ratings</label>
+            <button id="getAllRatings" class="btn btn-info">Get Ratings</button>
+            <div id="allRatingsResult" class="result-box"></div>
+          </div>
+
+          <div class="form-group">
+            <label>View Specific Entity Rating</label>
+            <div class="input-group">
+              <input
+                type="text"
+                id="entityRatingAddress"
+                class="form-control"
+                placeholder="Entity Address"
+              />
+              <button id="getEntityRating" class="btn btn-info">Query</button>
+            </div>
+            <div id="entityRatingResult" class="result-box"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Voting Section -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Vote for Entity Performance</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Select Entity to Vote</label>
+            <div class="input-group mb-2">
+              <input
+                type="text"
+                id="voteEntityAddress"
+                class="form-control"
+                placeholder="Entity Address"
+              />
+            </div>
+            <div class="rating-stars mb-2">
+              <span class="star" data-rating="1">★</span>
+              <span class="star" data-rating="2">★</span>
+              <span class="star" data-rating="3">★</span>
+              <span class="star" data-rating="4">★</span>
+              <span class="star" data-rating="5">★</span>
+            </div>
+            <button id="submitVote" class="btn btn-success">Submit Vote</button>
+            <div id="votingStatus" class="result-box"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance Bonus Distribution -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Performance Bonus Status</h5>
+        </div>
+        <div class="card-body">
+          <button id="getBonusTime" class="btn btn-info" disabled>
+            Check Time Until Next Bonus
+          </button>
+          <div id="bonusTimeResult" class="mt-2"></div>
+        </div>
+      </div>
+
+      <!-- Loading Indicator -->
+      <div id="loading" class="loading">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p>Processing transaction...</p>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Contract configuration
+      const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+      const contractABI = [
+        "function voteForEntity(address entityAddress, uint256 rating) public",
+        "function getEntityHappinessRating(address entityAddress) public view returns (uint256 rating, uint256 totalVotes, uint256 lastVoteTime)",
+        "function getAllEntityRatings() public view returns (address[] memory addresses, uint256[] memory ratings, uint256[] memory votes)",
+        "function checkVotingStatus(address voter) public view returns (bool)",
+        "function getTimeUntilNextBonus() public view returns (uint256)",
+      ];
+
+      let provider, signer, contract;
+      const loading = document.getElementById("loading");
+      let selectedRating = 0;
+
+      // Initialize star rating system
+      function initializeStarRating() {
+        const stars = document.querySelectorAll(".star");
+        stars.forEach((star) => {
+          star.addEventListener("click", () => {
+            const rating = parseInt(star.dataset.rating);
+            selectedRating = rating;
+            stars.forEach((s) => {
+              if (parseInt(s.dataset.rating) <= rating) {
+                s.classList.add("active");
+                s.classList.remove("inactive");
+              } else {
+                s.classList.remove("active");
+                s.classList.add("inactive");
+              }
+            });
+          });
+        });
+      }
+
+      // Connect to the contract using selected account
+      async function connectToContract() {
+        try {
+          if (typeof ethers === "undefined") {
+            throw new Error("ethers.js not loaded!");
+          }
+
+          const selectedAddress = document.getElementById("voterSelect").value;
+          if (!selectedAddress) {
+            throw new Error("Please select a voter account");
+          }
+
+          provider = new ethers.providers.JsonRpcProvider(
+            "http://127.0.0.1:8545",
+            {
+              name: "hardhat",
+              chainId: 31337,
+            }
+          );
+
+          provider.ensAddress = null;
+          console.log("Provider created");
+
+          // Use the selected account's private key
+          const privateKey =
+            selectedAddress === "0xdD2FD4581271e230360230F9337D5c0430Bf44C0"
+              ? "0xde9be858da4a475276426320d5e9262ecfc3ba460bfac56360bfa6c4c28b4ee0"
+              : "0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e";
+
+          signer = new ethers.Wallet(privateKey, provider);
+          console.log("Signer created");
+
+          contract = new ethers.Contract(contractAddress, contractABI, signer);
+          console.log("Contract instance created");
+
+          document.getElementById("connectionStatus").textContent =
+            "Connected as: " + selectedAddress;
+          document.getElementById("connectionStatus").style.color = "green";
+
+          // Enable all buttons
+          const buttons = [
+            "getAllRatings",
+            "getEntityRating",
+            "submitVote",
+            "getBonusTime",
+          ];
+
+          buttons.forEach((buttonId) => {
+            const button = document.getElementById(buttonId);
+            if (button) {
+              button.disabled = false;
+            }
+          });
+        } catch (error) {
+          console.error("Connection error:", error);
+          document.getElementById("connectionStatus").textContent =
+            "Connection failed: " + error.message;
+          document.getElementById("connectionStatus").style.color = "red";
+        }
+      }
+
+      // Show loading indicator
+      function showLoading() {
+        loading.style.display = "block";
+      }
+
+      // Hide loading indicator
+      function hideLoading() {
+        loading.style.display = "none";
+      }
+
+      // Show error message
+      function showError(elementId, message) {
+        const element = document.getElementById(elementId);
+        element.innerHTML = `<div class="error-message">${message}</div>`;
+      }
+
+      // Format timestamp
+      function formatTimestamp(timestamp) {
+        return new Date(timestamp.toNumber() * 1000).toLocaleString();
+      }
+
+      // Get all entity ratings
+      document
+        .getElementById("getAllRatings")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const [addresses, ratings, votes] =
+              await contract.getAllEntityRatings();
+            let html = "";
+            for (let i = 0; i < addresses.length; i++) {
+              html += `
+                Entity: ${addresses[i]}<br>
+                Rating: ${ratings[i].toString()}/5<br>
+                Total Votes: ${votes[i].toString()}<br><br>
+              `;
+            }
+            document.getElementById("allRatingsResult").innerHTML = html;
+          } catch (error) {
+            showError("allRatingsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      // Get specific entity rating
+      document
+        .getElementById("getEntityRating")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const address = document.getElementById(
+              "entityRatingAddress"
+            ).value;
+            const [rating, totalVotes, lastVoteTime] =
+              await contract.getEntityHappinessRating(address);
+            document.getElementById("entityRatingResult").innerHTML = `
+              Rating: ${rating.toString()}/5<br>
+              Total Votes: ${totalVotes.toString()}<br>
+              Last Vote Time: ${formatTimestamp(lastVoteTime)}<br>
+            `;
+          } catch (error) {
+            showError("entityRatingResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      // Submit vote
+      document
+        .getElementById("submitVote")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const address = document.getElementById("voteEntityAddress").value;
+            if (!selectedRating) {
+              throw new Error("Please select a rating");
+            }
+            const tx = await contract.voteForEntity(address, selectedRating);
+            await tx.wait();
+            document.getElementById("votingStatus").innerHTML =
+              "Vote submitted successfully!";
+          } catch (error) {
+            showError("votingStatus", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      // Check time until next bonus
+      document
+        .getElementById("getBonusTime")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const timeUntil = await contract.getTimeUntilNextBonus();
+            const hours = Math.floor(timeUntil.toNumber() / 3600);
+            const minutes = Math.floor((timeUntil.toNumber() % 3600) / 60);
+            document.getElementById("bonusTimeResult").innerHTML = `
+              Time until next bonus distribution:<br>
+              ${hours} hours and ${minutes} minutes
+            `;
+          } catch (error) {
+            showError("bonusTimeResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      // Initialize when the page loads
+      document.addEventListener("DOMContentLoaded", () => {
+        initializeStarRating();
+        const buttons = [
+          "getAllRatings",
+          "getEntityRating",
+          "submitVote",
+          "getBonusTime",
+        ];
+
+        buttons.forEach((buttonId) => {
+          const button = document.getElementById(buttonId);
+          if (button) {
+            button.disabled = true;
+          }
+        });
+      });
+
+      // Connect account button
+      document
+        .getElementById("connectAccount")
+        .addEventListener("click", connectToContract);
+    </script>
+  </body>
+</html>

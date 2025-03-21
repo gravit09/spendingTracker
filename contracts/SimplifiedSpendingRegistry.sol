@@ -6,6 +6,9 @@ contract SimplifiedSpendingRegistry {
         string name;
         bool isActive;
         uint256 balance;
+        uint256 happinessRating;
+        uint256 totalVotes;
+        uint256 lastVoteTimestamp;
     }
 
     struct SpendingRecord {
@@ -38,6 +41,7 @@ contract SimplifiedSpendingRegistry {
     mapping(address => GovernmentEntity) public governmentEntities;
     mapping(uint256 => SpendingRecord) public spendingRecords;
     mapping(uint256 => IssuedFund) public issuedFunds;
+    mapping(address => bool) public hasVoted;
     address[] public entityAddresses;
     uint256 public recordCount;
     uint256 public requestCount;
@@ -45,6 +49,9 @@ contract SimplifiedSpendingRegistry {
     FundRequest[] public fundRequests;
 
     address public centralGovernment;
+    uint256 public constant VOTING_COOLDOWN = 1 days;
+    uint256 public constant BONUS_AMOUNT = 1 ether; // 1 ETH bonus for top performer
+    uint256 public lastBonusDistribution;
 
     // Events
     event EntityRegistered(address indexed entityAddress, string name);
@@ -60,9 +67,12 @@ contract SimplifiedSpendingRegistry {
     );
     event FundRequestApproved(uint256 indexed id, address indexed entity);
     event FundRequestRejected(uint256 indexed id, address indexed entity);
+    event Voted(address indexed voter, address indexed entity, uint256 rating);
+    event BonusDistributed(address indexed entity, uint256 amount);
 
     constructor() {
         centralGovernment = msg.sender;
+        lastBonusDistribution = block.timestamp;
     }
 
     modifier onlyCentralGovernment() {
@@ -84,7 +94,10 @@ contract SimplifiedSpendingRegistry {
         governmentEntities[entityAddress] = GovernmentEntity({
             name: name,
             isActive: true,
-            balance: 0
+            balance: 0,
+            happinessRating: 0,
+            totalVotes: 0,
+            lastVoteTimestamp: 0
         });
         
         entityAddresses.push(entityAddress);
@@ -383,5 +396,91 @@ contract SimplifiedSpendingRegistry {
         }
         
         return result;
+    }
+
+    // Vote for an entity's performance
+    function voteForEntity(address entityAddress, uint256 rating) public {
+        require(governmentEntities[entityAddress].isActive, "Entity is not active");
+        require(rating >= 1 && rating <= 5, "Rating must be between 1 and 5");
+        
+        // Update entity's happiness rating
+        uint256 currentRating = governmentEntities[entityAddress].happinessRating;
+        uint256 totalVotes = governmentEntities[entityAddress].totalVotes;
+        uint256 newRating = ((currentRating * totalVotes) + rating) / (totalVotes + 1);
+        
+        governmentEntities[entityAddress].happinessRating = newRating;
+        governmentEntities[entityAddress].totalVotes += 1;
+        governmentEntities[entityAddress].lastVoteTimestamp = block.timestamp;
+        
+        emit Voted(msg.sender, entityAddress, rating);
+    }
+
+    // Distribute bonus to top performing entity
+    function distributeBonus() public onlyCentralGovernment {
+        require(block.timestamp >= lastBonusDistribution + VOTING_COOLDOWN, "Too soon to distribute bonus");
+        require(address(this).balance >= BONUS_AMOUNT, "Insufficient contract balance");
+
+        address topEntity = address(0);
+        uint256 highestRating = 0;
+
+        for (uint256 i = 0; i < entityAddresses.length; i++) {
+            address entityAddress = entityAddresses[i];
+            if (governmentEntities[entityAddress].isActive && 
+                governmentEntities[entityAddress].happinessRating > highestRating) {
+                highestRating = governmentEntities[entityAddress].happinessRating;
+                topEntity = entityAddress;
+            }
+        }
+
+        require(topEntity != address(0), "No eligible entities found");
+
+        governmentEntities[topEntity].balance += BONUS_AMOUNT;
+        lastBonusDistribution = block.timestamp;
+
+        emit BonusDistributed(topEntity, BONUS_AMOUNT);
+    }
+
+    // Get entity's happiness rating
+    function getEntityHappinessRating(address entityAddress) public view returns (
+        uint256 rating,
+        uint256 totalVotes,
+        uint256 lastVoteTime
+    ) {
+        require(governmentEntities[entityAddress].isActive || !governmentEntities[entityAddress].isActive, "Not a registered entity");
+        GovernmentEntity memory entity = governmentEntities[entityAddress];
+        return (entity.happinessRating, entity.totalVotes, entity.lastVoteTimestamp);
+    }
+
+    // Get all entities with their happiness ratings
+    function getAllEntityRatings() public view returns (
+        address[] memory addresses,
+        uint256[] memory ratings,
+        uint256[] memory votes
+    ) {
+        uint256 count = entityAddresses.length;
+        addresses = new address[](count);
+        ratings = new uint256[](count);
+        votes = new uint256[](count);
+
+        for (uint256 i = 0; i < count; i++) {
+            addresses[i] = entityAddresses[i];
+            ratings[i] = governmentEntities[entityAddresses[i]].happinessRating;
+            votes[i] = governmentEntities[entityAddresses[i]].totalVotes;
+        }
+
+        return (addresses, ratings, votes);
+    }
+
+    // Check if an address has voted
+    function checkVotingStatus(address voter) public view returns (bool) {
+        return hasVoted[voter];
+    }
+
+    // Get time until next bonus distribution
+    function getTimeUntilNextBonus() public view returns (uint256) {
+        if (block.timestamp >= lastBonusDistribution + VOTING_COOLDOWN) {
+            return 0;
+        }
+        return (lastBonusDistribution + VOTING_COOLDOWN) - block.timestamp;
     }
 }
