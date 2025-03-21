@@ -28,11 +28,20 @@ contract SimplifiedSpendingRegistry {
         bool isRejected;
     }
 
+    struct IssuedFund {
+        uint256 id;
+        address entity;
+        uint256 amount;
+        uint256 timestamp;
+    }
+
     mapping(address => GovernmentEntity) public governmentEntities;
     mapping(uint256 => SpendingRecord) public spendingRecords;
+    mapping(uint256 => IssuedFund) public issuedFunds;
     address[] public entityAddresses;
     uint256 public recordCount;
     uint256 public requestCount;
+    uint256 public issuedFundCount;
     FundRequest[] public fundRequests;
 
     address public centralGovernment;
@@ -40,7 +49,7 @@ contract SimplifiedSpendingRegistry {
     // Events
     event EntityRegistered(address indexed entityAddress, string name);
     event EntityDeactivated(address indexed entityAddress);
-    event FundsIssued(address indexed to, uint256 amount);
+    event FundsIssued(uint256 indexed id, address indexed to, uint256 amount);
     event SpendingRecorded(uint256 indexed id, address indexed entity, uint256 amount, string documentHash);
     event FundRequested(
         uint256 indexed id,
@@ -95,7 +104,17 @@ contract SimplifiedSpendingRegistry {
         require(msg.value == amount, "Sent value must match the amount");
         
         governmentEntities[entityAddress].balance += amount;
-        emit FundsIssued(entityAddress, amount);
+        
+        // Record the issued fund
+        issuedFundCount++;
+        issuedFunds[issuedFundCount] = IssuedFund({
+            id: issuedFundCount,
+            entity: entityAddress,
+            amount: amount,
+            timestamp: block.timestamp
+        });
+        
+        emit FundsIssued(issuedFundCount, entityAddress, amount);
     }
 
     // Record spending with documentation
@@ -302,6 +321,67 @@ contract SimplifiedSpendingRegistry {
                 resultIndex++;
             }
         }
+        return result;
+    }
+
+    // Get issued fund by ID
+    function getIssuedFund(uint256 fundId) public view returns (IssuedFund memory) {
+        require(fundId > 0 && fundId <= issuedFundCount, "Invalid fund ID");
+        return issuedFunds[fundId];
+    }
+
+    // Get all issued funds (paginated)
+    function getIssuedFunds(uint256 offset, uint256 limit) public view returns (IssuedFund[] memory) {
+        require(offset < issuedFundCount, "Offset exceeds issued fund count");
+        require(limit > 0, "Limit must be greater than zero");
+        
+        uint256 resultCount = limit;
+        if (offset + limit > issuedFundCount) {
+            resultCount = issuedFundCount - offset;
+        }
+        
+        IssuedFund[] memory result = new IssuedFund[](resultCount);
+        for (uint256 i = 0; i < resultCount; i++) {
+            result[i] = issuedFunds[offset + i + 1];
+        }
+        
+        return result;
+    }
+
+    // Get issued funds for a specific entity (paginated)
+    function getEntityIssuedFunds(address entityAddress, uint256 offset, uint256 limit) public view returns (IssuedFund[] memory) {
+        require(governmentEntities[entityAddress].isActive || !governmentEntities[entityAddress].isActive, "Not a registered entity");
+        
+        // First, count how many funds were issued to this entity
+        uint256 entityFundCount = 0;
+        for (uint256 i = 1; i <= issuedFundCount; i++) {
+            if (issuedFunds[i].entity == entityAddress) {
+                entityFundCount++;
+            }
+        }
+        
+        require(offset < entityFundCount, "Offset exceeds entity fund count");
+        require(limit > 0, "Limit must be greater than zero");
+        
+        uint256 resultCount = limit;
+        if (offset + limit > entityFundCount) {
+            resultCount = entityFundCount - offset;
+        }
+        
+        IssuedFund[] memory result = new IssuedFund[](resultCount);
+        uint256 currentOffset = 0;
+        uint256 resultIndex = 0;
+        
+        for (uint256 i = 1; i <= issuedFundCount && resultIndex < resultCount; i++) {
+            if (issuedFunds[i].entity == entityAddress) {
+                if (currentOffset >= offset) {
+                    result[resultIndex] = issuedFunds[i];
+                    resultIndex++;
+                }
+                currentOffset++;
+            }
+        }
+        
         return result;
     }
 }

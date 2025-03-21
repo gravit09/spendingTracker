@@ -256,6 +256,68 @@
         </div>
       </div>
 
+      <!-- Issued Funds Management -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Issued Funds Management</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>View All Issued Funds</label>
+            <div class="input-group">
+              <input
+                type="number"
+                id="issuedFundOffset"
+                class="form-control"
+                placeholder="Offset"
+                value="0"
+              />
+              <input
+                type="number"
+                id="issuedFundLimit"
+                class="form-control"
+                placeholder="Limit"
+                value="5"
+              />
+              <button id="getAllIssuedFunds" class="btn btn-info">Query</button>
+            </div>
+            <div id="allIssuedFundsResult" class="result-box"></div>
+          </div>
+
+          <div class="form-group mt-3">
+            <label>View Entity's Issued Funds</label>
+            <div class="input-group mb-2">
+              <input
+                type="text"
+                id="entityIssuedFundAddress"
+                class="form-control"
+                placeholder="Entity Address"
+              />
+            </div>
+            <div class="input-group">
+              <input
+                type="number"
+                id="entityIssuedFundOffset"
+                class="form-control"
+                placeholder="Offset"
+                value="0"
+              />
+              <input
+                type="number"
+                id="entityIssuedFundLimit"
+                class="form-control"
+                placeholder="Limit"
+                value="5"
+              />
+              <button id="getEntityIssuedFunds" class="btn btn-info">
+                Query
+              </button>
+            </div>
+            <div id="entityIssuedFundsResult" class="result-box"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Loading Indicator -->
       <div id="loading" class="loading">
         <div class="spinner-border text-primary" role="status">
@@ -292,6 +354,8 @@
         "function getFundRequests(uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, uint256 amount, string reason, string documentHash, uint256 timestamp, bool isApproved, bool isRejected)[] memory)",
         "function approveFundRequest(uint256 requestId) public",
         "function rejectFundRequest(uint256 requestId) public",
+        "function getIssuedFunds(uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, uint256 amount, uint256 timestamp)[] memory)",
+        "function getEntityIssuedFunds(address entityAddress, uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, uint256 amount, uint256 timestamp)[] memory)",
       ];
 
       let provider, signer, contract;
@@ -310,6 +374,8 @@
           "getAllFundRequests",
           "approveRequest",
           "rejectRequest",
+          "getAllIssuedFunds",
+          "getEntityIssuedFunds",
         ];
 
         buttons.forEach((buttonId) => {
@@ -380,6 +446,8 @@
             "getAllFundRequests",
             "approveRequest",
             "rejectRequest",
+            "getAllIssuedFunds",
+            "getEntityIssuedFunds",
           ];
 
           buttons.forEach((buttonId) => {
@@ -723,6 +791,71 @@
             alert("Fund request rejected successfully!");
           } catch (error) {
             showError("allFundRequestsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      // Issued Funds Management
+      document
+        .getElementById("getAllIssuedFunds")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const offset = parseInt(
+              document.getElementById("issuedFundOffset").value
+            );
+            const limit = parseInt(
+              document.getElementById("issuedFundLimit").value
+            );
+            const funds = await contract.getIssuedFunds(offset, limit);
+            let html = "";
+            funds.forEach((fund) => {
+              html += `
+                ID: ${fund.id.toString()}<br>
+                Entity: ${fund.entity}<br>
+                Amount: ${ethers.utils.formatEther(fund.amount)} ETH<br>
+                Timestamp: ${formatTimestamp(fund.timestamp)}<br><br>
+              `;
+            });
+            document.getElementById("allIssuedFundsResult").innerHTML = html;
+          } catch (error) {
+            showError("allIssuedFundsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      document
+        .getElementById("getEntityIssuedFunds")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const address = document.getElementById(
+              "entityIssuedFundAddress"
+            ).value;
+            const offset = parseInt(
+              document.getElementById("entityIssuedFundOffset").value
+            );
+            const limit = parseInt(
+              document.getElementById("entityIssuedFundLimit").value
+            );
+            const funds = await contract.getEntityIssuedFunds(
+              address,
+              offset,
+              limit
+            );
+            let html = "";
+            funds.forEach((fund) => {
+              html += `
+                ID: ${fund.id.toString()}<br>
+                Amount: ${ethers.utils.formatEther(fund.amount)} ETH<br>
+                Timestamp: ${formatTimestamp(fund.timestamp)}<br><br>
+              `;
+            });
+            document.getElementById("entityIssuedFundsResult").innerHTML = html;
+          } catch (error) {
+            showError("entityIssuedFundsResult", error.message);
           } finally {
             hideLoading();
           }
