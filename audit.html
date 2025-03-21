@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spending Registry - Audit Page</title>
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .card {
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .result-box {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 10px;
+        white-space: pre-wrap;
+      }
+      .error-message {
+        color: #dc3545;
+        margin-top: 10px;
+      }
+      .transaction-type {
+        font-weight: bold;
+        color: #0d6efd;
+      }
+      .transaction-amount {
+        color: #198754;
+      }
+      .transaction-timestamp {
+        color: #6c757d;
+        font-size: 0.9em;
+      }
+      .loading {
+        display: none;
+        text-align: center;
+        margin: 20px 0;
+      }
+      .nav-link {
+        color: #0d6efd;
+      }
+    </style>
+  </head>
+  <body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+      <div class="container">
+        <a class="navbar-brand" href="index.html">Spending Registry</a>
+        <div class="navbar-nav">
+          <a class="nav-link" href="index.html">Back to Role Selection</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container mt-4">
+      <h2 class="text-center mb-4">Transaction Audit Dashboard</h2>
+
+      <!-- Connection Status -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Select Auditor Account</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Choose Auditor Account</label>
+            <select id="auditorSelect" class="form-control">
+              <option value="">Select an account</option>
+              <option value="0xbDA5747bFD65F08deb54cb465eB87D40e51B197E">
+                Auditor (0xbDA5...197E)
+              </option>
+            </select>
+          </div>
+          <button id="connectAccount" class="btn btn-primary mt-2">
+            Connect as Auditor
+          </button>
+          <div id="connectionStatus" class="mt-2"></div>
+        </div>
+      </div>
+
+      <!-- Fund Issuance Records -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Fund Issuance Records</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>View Issued Funds</label>
+            <div class="row">
+              <div class="col-md-4">
+                <input
+                  type="number"
+                  id="issuedFundsOffset"
+                  class="form-control"
+                  placeholder="Offset"
+                  value="0"
+                />
+              </div>
+              <div class="col-md-4">
+                <input
+                  type="number"
+                  id="issuedFundsLimit"
+                  class="form-control"
+                  placeholder="Limit"
+                  value="10"
+                />
+              </div>
+              <div class="col-md-4">
+                <button id="getIssuedFunds" class="btn btn-primary" disabled>
+                  View Issued Funds
+                </button>
+              </div>
+            </div>
+            <div id="issuedFundsResult" class="result-box"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Spending Records -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Spending Records</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>View Spending Records</label>
+            <div class="row">
+              <div class="col-md-4">
+                <input
+                  type="number"
+                  id="spendingRecordsOffset"
+                  class="form-control"
+                  placeholder="Offset"
+                  value="0"
+                />
+              </div>
+              <div class="col-md-4">
+                <input
+                  type="number"
+                  id="spendingRecordsLimit"
+                  class="form-control"
+                  placeholder="Limit"
+                  value="10"
+                />
+              </div>
+              <div class="col-md-4">
+                <button
+                  id="getSpendingRecords"
+                  class="btn btn-primary"
+                  disabled
+                >
+                  View Spending Records
+                </button>
+              </div>
+            </div>
+            <div id="spendingRecordsResult" class="result-box"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fund Requests -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Fund Requests</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>View Fund Requests</label>
+            <div class="row">
+              <div class="col-md-4">
+                <input
+                  type="number"
+                  id="fundRequestsOffset"
+                  class="form-control"
+                  placeholder="Offset"
+                  value="0"
+                />
+              </div>
+              <div class="col-md-4">
+                <input
+                  type="number"
+                  id="fundRequestsLimit"
+                  class="form-control"
+                  placeholder="Limit"
+                  value="10"
+                />
+              </div>
+              <div class="col-md-4">
+                <button id="getFundRequests" class="btn btn-primary" disabled>
+                  View Fund Requests
+                </button>
+              </div>
+            </div>
+            <div id="fundRequestsResult" class="result-box"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bonus Distribution -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Performance Bonus Distribution</h5>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>View Entity Ratings and Bonus Status</label>
+            <button id="getEntityRatings" class="btn btn-primary" disabled>
+              View Entity Ratings
+            </button>
+            <button id="getBonusTime" class="btn btn-info" disabled>
+              Check Time Until Next Bonus
+            </button>
+            <div id="entityRatingsResult" class="result-box"></div>
+            <div id="bonusTimeResult" class="result-box"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading Indicator -->
+      <div id="loading" class="loading">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ethers.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+
+    <script>
+      // Contract configuration
+      const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+      const contractABI = [
+        "function getIssuedFunds(uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, uint256 amount, uint256 timestamp)[] memory)",
+        "function getSpendingRecords(uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, string purpose, uint256 amount, string documentHash, uint256 timestamp)[] memory)",
+        "function getFundRequests(uint256 offset, uint256 limit) public view returns (tuple(uint256 id, address entity, uint256 amount, string reason, string documentHash, uint256 timestamp, bool isApproved, bool isRejected)[] memory)",
+        "function getAllEntityRatings() public view returns (address[] memory addresses, uint256[] memory ratings, uint256[] memory votes)",
+        "function getTimeUntilNextBonus() public view returns (uint256)",
+      ];
+
+      let provider, signer, contract;
+      const loading = document.getElementById("loading");
+
+      // Connect to the contract using selected account
+      async function connectToContract() {
+        try {
+          if (typeof ethers === "undefined") {
+            throw new Error("ethers.js not loaded!");
+          }
+
+          const selectedAddress =
+            document.getElementById("auditorSelect").value;
+          if (!selectedAddress) {
+            throw new Error("Please select an auditor account");
+          }
+
+          provider = new ethers.providers.JsonRpcProvider(
+            "http://127.0.0.1:8545",
+            {
+              name: "hardhat",
+              chainId: 31337,
+            }
+          );
+
+          provider.ensAddress = null;
+          console.log("Provider created");
+
+          // Use the selected account's private key
+          const privateKey =
+            "0x689af8efa8c651a91ad287602527f3af2fe9f6501a7ac4b061667b5a93e037fd";
+
+          signer = new ethers.Wallet(privateKey, provider);
+          console.log("Signer created");
+
+          contract = new ethers.Contract(contractAddress, contractABI, signer);
+          console.log("Contract instance created");
+
+          document.getElementById("connectionStatus").textContent =
+            "Connected as: " + selectedAddress;
+          document.getElementById("connectionStatus").style.color = "green";
+
+          // Enable all buttons
+          const buttons = [
+            "getIssuedFunds",
+            "getSpendingRecords",
+            "getFundRequests",
+            "getEntityRatings",
+            "getBonusTime",
+          ];
+
+          buttons.forEach((buttonId) => {
+            const button = document.getElementById(buttonId);
+            if (button) {
+              button.disabled = false;
+            }
+          });
+        } catch (error) {
+          console.error("Connection error:", error);
+          document.getElementById("connectionStatus").textContent =
+            "Connection failed: " + error.message;
+          document.getElementById("connectionStatus").style.color = "red";
+        }
+      }
+
+      // View issued funds
+      document
+        .getElementById("getIssuedFunds")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const offset = parseInt(
+              document.getElementById("issuedFundsOffset").value
+            );
+            const limit = parseInt(
+              document.getElementById("issuedFundsLimit").value
+            );
+
+            const issuedFunds = await contract.getIssuedFunds(offset, limit);
+            let result = "Issued Funds:\n\n";
+            issuedFunds.forEach((fund) => {
+              result += `ID: ${fund.id}\n`;
+              result += `Entity: ${fund.entity}\n`;
+              result += `Amount: ${ethers.utils.formatEther(
+                fund.amount
+              )} ETH\n`;
+              result += `Timestamp: ${new Date(
+                fund.timestamp * 1000
+              ).toLocaleString()}\n`;
+              result += "------------------------\n";
+            });
+            document.getElementById("issuedFundsResult").innerHTML = result;
+          } catch (error) {
+            showError("issuedFundsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      // View spending records
+      document
+        .getElementById("getSpendingRecords")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const offset = parseInt(
+              document.getElementById("spendingRecordsOffset").value
+            );
+            const limit = parseInt(
+              document.getElementById("spendingRecordsLimit").value
+            );
+
+            const spendingRecords = await contract.getSpendingRecords(
+              offset,
+              limit
+            );
+            let result = "Spending Records:\n\n";
+            spendingRecords.forEach((record) => {
+              result += `ID: ${record.id}\n`;
+              result += `Entity: ${record.entity}\n`;
+              result += `Purpose: ${record.purpose}\n`;
+              result += `Amount: ${ethers.utils.formatEther(
+                record.amount
+              )} ETH\n`;
+              result += `Document Hash: ${record.documentHash}\n`;
+              result += `Timestamp: ${new Date(
+                record.timestamp * 1000
+              ).toLocaleString()}\n`;
+              result += "------------------------\n";
+            });
+            document.getElementById("spendingRecordsResult").innerHTML = result;
+          } catch (error) {
+            showError("spendingRecordsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      // View fund requests
+      document
+        .getElementById("getFundRequests")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const offset = parseInt(
+              document.getElementById("fundRequestsOffset").value
+            );
+            const limit = parseInt(
+              document.getElementById("fundRequestsLimit").value
+            );
+
+            const fundRequests = await contract.getFundRequests(offset, limit);
+            let result = "Fund Requests:\n\n";
+            fundRequests.forEach((request) => {
+              result += `ID: ${request.id}\n`;
+              result += `Entity: ${request.entity}\n`;
+              result += `Amount: ${ethers.utils.formatEther(
+                request.amount
+              )} ETH\n`;
+              result += `Reason: ${request.reason}\n`;
+              result += `Document Hash: ${request.documentHash}\n`;
+              result += `Timestamp: ${new Date(
+                request.timestamp * 1000
+              ).toLocaleString()}\n`;
+              result += `Status: ${
+                request.isApproved
+                  ? "Approved"
+                  : request.isRejected
+                  ? "Rejected"
+                  : "Pending"
+              }\n`;
+              result += "------------------------\n";
+            });
+            document.getElementById("fundRequestsResult").innerHTML = result;
+          } catch (error) {
+            showError("fundRequestsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      // View entity ratings
+      document
+        .getElementById("getEntityRatings")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const [addresses, ratings, votes] =
+              await contract.getAllEntityRatings();
+            let result = "Entity Ratings:\n\n";
+            for (let i = 0; i < addresses.length; i++) {
+              result += `Entity: ${addresses[i]}\n`;
+              result += `Rating: ${ratings[i]}\n`;
+              result += `Total Votes: ${votes[i]}\n`;
+              result += "------------------------\n";
+            }
+            document.getElementById("entityRatingsResult").innerHTML = result;
+          } catch (error) {
+            showError("entityRatingsResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      // Check time until next bonus
+      document
+        .getElementById("getBonusTime")
+        .addEventListener("click", async () => {
+          try {
+            showLoading();
+            const timeUntilBonus = await contract.getTimeUntilNextBonus();
+            const hours = timeUntilBonus.div(3600);
+            const minutes = timeUntilBonus.mod(3600).div(60);
+            document.getElementById(
+              "bonusTimeResult"
+            ).innerHTML = `Next bonus distribution in: ${hours} hours and ${minutes} minutes`;
+          } catch (error) {
+            showError("bonusTimeResult", error.message);
+          } finally {
+            hideLoading();
+          }
+        });
+
+      // Helper functions
+      function showLoading() {
+        loading.style.display = "block";
+      }
+
+      function hideLoading() {
+        loading.style.display = "none";
+      }
+
+      function showError(elementId, message) {
+        document.getElementById(elementId).innerHTML =
+          '<div class="error-message">Error: ' + message + "</div>";
+      }
+
+      // Connect account button
+      document
+        .getElementById("connectAccount")
+        .addEventListener("click", connectToContract);
+
+      // Initialize buttons when the page loads
+      document.addEventListener("DOMContentLoaded", () => {
+        const buttons = [
+          "getIssuedFunds",
+          "getSpendingRecords",
+          "getFundRequests",
+          "getEntityRatings",
+          "getBonusTime",
+        ];
+
+        buttons.forEach((buttonId) => {
+          const button = document.getElementById(buttonId);
+          if (button) {
+            button.disabled = true;
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
